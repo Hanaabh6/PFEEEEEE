@@ -66,6 +66,64 @@ body {
 
 .main { flex: 1; padding: 30px; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.quick-position-bar {
+  margin-top: 14px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+}
+.quick-position-field {
+  display: grid;
+  gap: 6px;
+}
+.quick-position-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+}
+.quick-position-select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+}
+.quick-position-select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+  outline: none;
+}
+.quick-position-btn {
+  border: 1px solid #10b981;
+  background: #10b981;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.quick-position-btn:hover {
+  background: #059669;
+  border-color: #059669;
+}
+.quick-position-room {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #334155;
+  font-weight: 700;
+}
 .search {
   width: min(100%, 560px); padding: 14px 16px; border-radius: 25px; border: none; outline: none;
   background: rgba(255, 255, 255, 0.9); box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12); font-size: 15px;
@@ -402,16 +460,102 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   color: #be123c;
 }
 
+.user-quick-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  margin: 8px 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.filter-chip {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  border: none;
+  background: linear-gradient(135deg, #e2e8f0, #f1f5f9);
+  color: #0f172a;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.filter-chip:hover {
+  background: linear-gradient(135deg, #cbd5e1, #e2e8f0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.filter-chip.is-active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.compact-position-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 8px 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.compact-position-select {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.compact-position-select:focus {
+  border-color: #10b981;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.14);
+}
+
+.compact-position-btn {
+  border: none;
+  background: #10b981;
+  color: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.compact-position-btn:hover {
+  background: #059669;
+  transform: scale(1.02);
+}
+
 @media (max-width: 900px) {
   .container { flex-direction: column; width: 100%; }
   .sidebar { width: 100%; }
   .main { padding: 18px; }
-  .topbar { flex-direction: column; align-items: stretch; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .quick-position-bar { display: none; }
+  .quick-position-room { display: none; }
   .profile { align-self: flex-end; }
   .profile-shell { grid-template-columns: 1fr; }
   .profile-grid { grid-template-columns: 1fr; }
   .object-detail-grid { grid-template-columns: 1fr; }
   .object-sheet-head { flex-direction: column; }
+  .user-quick-filters { flex-wrap: wrap; overflow-x: auto; padding-bottom: 4px; }
 }
 </style>
   <link rel="stylesheet" href="theme.css">
@@ -439,13 +583,14 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   <script src="sidebar-loader.js"></script>
 
   <div class="main">
-    <div class="topbar user-toolbar">
-      <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
-        <div style="background: #047857; color: white; padding: 10px 16px; border-radius: 25px; font-weight: 700; white-space: nowrap;">
-          <i class="fas fa-map-pin" style="margin-right: 8px;"></i>Ma position: <span id="userCurrentPos">Chargement...</span>
-        </div>
-      </div>
-      <input id="mainSearch" class="search" type="search" placeholder="Rechercher un objet..." data-key="search_objects" data-attr="placeholder" aria-label="Rechercher un objet">
+    <div class="topbar user-toolbar" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div class="compact-position-control">
+        <i class="fas fa-location-dot" style="color: #10b981; font-size: 12px;"></i>
+        <select id="quickFloorSelectCompact" class="compact-position-select"></select>
+        <select id="quickRoomSelectCompact" class="compact-position-select"></select>
+        <button type="button" id="quickSetPositionBtnCompact" class="compact-position-btn">✓</button>
+        <span id="userCurrentPos" style="font-size: 11px; font-weight: 700; color: #0f172a; white-space: nowrap; margin-left: 4px;">-</span>\n      </div>
+      <input id="mainSearch" class="search" type="search" placeholder="Rechercher un objet..." data-key="search_objects" data-attr="placeholder" aria-label="Rechercher un objet" style="flex: 1; min-width: 250px;">
       <div class="profile">
         <button class="avatar" id="profileButton" type="button" aria-haspopup="menu" aria-controls="menu" aria-expanded="false">A</button>
         <div class="dropdown" id="menu" role="menu" aria-labelledby="profileButton">
@@ -455,6 +600,10 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
           <a href="#" role="menuitem" id="logoutLink" data-key="logout">Deconnexion</a>
         </div>
       </div>
+    </div>
+
+    <div id="userQuickFilters" class="user-quick-filters" aria-label="Filtrer par type d'objet">
+      <button type="button" class="filter-chip is-active" data-quick-query="">Tout</button>
     </div>
 
     <div class="table-box dashboard-table" id="objectsSection">
@@ -520,6 +669,10 @@ const appToast = document.getElementById("appToast");
 const appToastTitle = document.getElementById("appToastTitle");
 const appToastText = document.getElementById("appToastText");
 const userCurrentPos = document.getElementById("userCurrentPos");
+const quickFloorSelectUser = document.getElementById("quickFloorSelectCompact");
+const quickRoomSelectUser = document.getElementById("quickRoomSelectCompact");
+const quickSetPositionBtnUser = document.getElementById("quickSetPositionBtnCompact");
+const quickPositionCurrentRoom = document.getElementById("quickPositionCurrentRoom") || document.createElement("div");
 const apiBase = window.APP_CONFIG.API_BASE;
 const userToken = localStorage.getItem("userToken");
 let appToastTimer = null;
@@ -529,10 +682,12 @@ let historyEntries = [];
 let selectedObjectDetails = null;
 let userProfileData = null;
 let roomCoordsCache = {};
+let layoutFloorsCache = [];
 const objectDetailsCache = new Map();
 let userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
 let userReports = JSON.parse(localStorage.getItem("userReports") || "[]");
 let userThingsAutoRefreshTimer = null;
+let userObjectTypeFilters = [];
 
 if (!userToken) window.location.href = "login.html";
 
@@ -690,6 +845,179 @@ async function loadRoomCoords() {
     console.error("Erreur chargement salles:", error);
     roomCoordsCache = {};
   }
+}
+
+async function loadLayoutFloors() {
+  if (Array.isArray(layoutFloorsCache) && layoutFloorsCache.length) return;
+  try {
+    const response = await fetch(`${apiBase}/localisation/layout`, { method: "GET" });
+    if (!response.ok) {
+      layoutFloorsCache = [];
+      return;
+    }
+    const data = await response.json();
+    const floors = Array.isArray(data?.floors) ? data.floors : [];
+    layoutFloorsCache = floors.map((floor) => ({
+      id: Number(floor?.id),
+      name: String(floor?.name || `Etage ${floor?.id ?? "?"}`),
+      rooms: Array.isArray(floor?.rooms) ? floor.rooms.map((room) => String(room || "").trim()).filter(Boolean) : []
+    })).filter((floor) => Number.isFinite(floor.id));
+  } catch (error) {
+    console.error("Erreur chargement etages:", error);
+    layoutFloorsCache = [];
+  }
+}
+
+function findFloorByRoom(roomName) {
+  const normalizedRoom = normalizeRoom(roomName);
+  if (!normalizedRoom || !Array.isArray(layoutFloorsCache)) return null;
+  for (const floor of layoutFloorsCache) {
+    if (!Array.isArray(floor.rooms)) continue;
+    const found = floor.rooms.some((room) => normalizeRoom(room) === normalizedRoom);
+    if (found) return floor;
+  }
+  return null;
+}
+
+function renderQuickRoomOptions(preferredRoom) {
+  if (!quickFloorSelectUser || !quickRoomSelectUser || !layoutFloorsCache.length) return;
+  const selectedFloorId = Number(quickFloorSelectUser.value);
+  const selectedFloor = layoutFloorsCache.find((floor) => floor.id === selectedFloorId) || layoutFloorsCache[0];
+  if (!selectedFloor) {
+    quickRoomSelectUser.innerHTML = '<option value="">Aucune salle</option>';
+    return;
+  }
+
+  const preferred = canonicalRoomFromCache(preferredRoom) || String(preferredRoom || "").trim();
+  quickRoomSelectUser.innerHTML = selectedFloor.rooms.map((room) => {
+    const selected = normalizeRoom(room) === normalizeRoom(preferred) ? "selected" : "";
+    return `<option value="${sanitizeText(room)}" ${selected}>${sanitizeText(room)}</option>`;
+  }).join("");
+}
+
+function renderQuickPositionSelectors(currentRoom) {
+  if (!quickFloorSelectUser || !quickRoomSelectUser) return;
+  if (!layoutFloorsCache.length) {
+    quickFloorSelectUser.innerHTML = '<option value="">Etages indisponibles</option>';
+    quickRoomSelectUser.innerHTML = '<option value="">Salles indisponibles</option>';
+    if (quickSetPositionBtnUser) quickSetPositionBtnUser.disabled = true;
+    return;
+  }
+
+  quickFloorSelectUser.innerHTML = layoutFloorsCache.map((floor) => (
+    `<option value="${floor.id}">${sanitizeText(floor.name)}</option>`
+  )).join("");
+
+  const canonicalCurrentRoom = canonicalRoomFromCache(currentRoom) || currentRoom;
+  const matchedFloor = findFloorByRoom(canonicalCurrentRoom) || layoutFloorsCache[0];
+  quickFloorSelectUser.value = String(matchedFloor.id);
+  renderQuickRoomOptions(canonicalCurrentRoom);
+  if (quickSetPositionBtnUser) quickSetPositionBtnUser.disabled = false;
+}
+
+async function applyQuickUserPosition() {
+  const selectedRoomRaw = String(quickRoomSelectUser?.value || "").trim();
+  if (!selectedRoomRaw) {
+    showAppToast("Veuillez choisir une salle.", "error", "Position");
+    return;
+  }
+
+  const selectedRoom = canonicalRoomFromCache(selectedRoomRaw) || selectedRoomRaw;
+  const selectedCoords = getCoordsFromCache(selectedRoom) || { x: 0, y: 0, z: 0 };
+
+  localStorage.setItem("user_room", selectedRoom);
+  localStorage.setItem("user_x", String(Number(selectedCoords.x || 0)));
+  localStorage.setItem("user_y", String(Number(selectedCoords.y || 0)));
+  localStorage.setItem("user_z", String(Number(selectedCoords.z || 0)));
+
+  if (userCurrentPos) {
+    userCurrentPos.textContent = selectedRoom;
+  }
+  if (quickPositionCurrentRoom) {
+    quickPositionCurrentRoom.textContent = selectedRoom;
+  }
+
+  showAppToast(`Position mise a jour: ${selectedRoom}`, "success", "Position");
+  await loadUserThings(mainSearch.value || "");
+}
+
+function initQuickPositionBar() {
+  if (!quickFloorSelectUser || !quickRoomSelectUser || !quickSetPositionBtnUser) return;
+
+  quickFloorSelectUser.addEventListener("change", function () {
+    renderQuickRoomOptions("");
+  });
+
+  quickSetPositionBtnUser.addEventListener("click", function () {
+    applyQuickUserPosition();
+  });
+}
+
+initQuickPositionBar();
+
+// Filter system functions
+function extractTypeFilters(list) {
+  const labelsByKey = new Map();
+  list.forEach(function (item) {
+    const typeLabel = String(item && (item.type || item['@type']) ? (item.type || item['@type']) : '').trim();
+    const typeKey = normalizeText(typeLabel);
+    if (!typeKey || labelsByKey.has(typeKey)) return;
+    labelsByKey.set(typeKey, typeLabel);
+  });
+  return Array.from(labelsByKey.values()).sort(function (a, b) {
+    return a.localeCompare(b, 'fr', { sensitivity: 'base' });
+  });
+}
+
+function renderQuickFilters() {
+  const userQuickFilters = document.getElementById('userQuickFilters');
+  if (!userQuickFilters) return;
+  
+  const activeQuery = mainSearch ? String(mainSearch.value || '') : '';
+  const buttons = [{ label: 'Tout', query: '' }].concat(
+    userObjectTypeFilters.map(function (label) {
+      return { label: label, query: label };
+    })
+  );
+
+  userQuickFilters.innerHTML = buttons.map(function (button) {
+    return `<button type="button" class="filter-chip" data-quick-query="${escapeHtml(button.query)}">${escapeHtml(button.label)}</button>`;
+  }).join('');
+
+  setActiveFilterChip(activeQuery);
+}
+
+function syncQuickFilters(list, query) {
+  const discoveredTypes = extractTypeFilters(list);
+  if (!userObjectTypeFilters.length || !String(query || '').trim()) {
+    userObjectTypeFilters = discoveredTypes;
+  } else {
+    const known = new Map(userObjectTypeFilters.map(function (label) {
+      return [normalizeText(label), label];
+    }));
+    discoveredTypes.forEach(function (label) {
+      const key = normalizeText(label);
+      if (!known.has(key)) {
+        known.set(key, label);
+        userObjectTypeFilters.push(label);
+      }
+    });
+    userObjectTypeFilters.sort(function (a, b) {
+      return a.localeCompare(b, 'fr', { sensitivity: 'base' });
+    });
+  }
+  renderQuickFilters();
+}
+
+function setActiveFilterChip(query) {
+  const normalizedQuery = normalizeText(query);
+  const userQuickFilters = document.getElementById('userQuickFilters');
+  if (!userQuickFilters) return;
+  const quickFilterButtons = Array.from(userQuickFilters.querySelectorAll('[data-quick-query]'));
+  quickFilterButtons.forEach(function (button) {
+    const candidate = normalizeText(button.getAttribute('data-quick-query') || '');
+    button.classList.toggle('is-active', candidate === normalizedQuery);
+  });
 }
 
 function toStatusCode(statusValue) {
@@ -986,6 +1314,24 @@ function applyDisplayName(displayName) {
   if (!safe) return;
   menuName.textContent = safe;
   profileButton.textContent = (safe[0] || "U").toUpperCase();
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, function (ch) {
+    if (ch === '&') return '&amp;';
+    if (ch === '<') return '&lt;';
+    if (ch === '>') return '&gt;';
+    if (ch === '"') return '&quot;';
+    return '&#39;';
+  });
 }
 
 function sanitizeText(value) {
@@ -1410,6 +1756,8 @@ async function loadUserThings(query) {
 
     await triggerNearbyNotification(list, user_room);
 
+    syncQuickFilters(list, query);
+
     objectsBody.querySelectorAll(".object-row").forEach((row) => {
       row.addEventListener("click", () => openObjectDecision(row));
       row.addEventListener("keydown", (event) => {
@@ -1419,6 +1767,20 @@ async function loadUserThings(query) {
         }
       });
     });
+
+    // Bind filter buttons event listeners
+    const userQuickFilters = document.getElementById('userQuickFilters');
+    if (userQuickFilters) {
+      userQuickFilters.querySelectorAll('[data-quick-query]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const filterQuery = String(this.getAttribute('data-quick-query') || '').trim();
+          if (mainSearch) {
+            mainSearch.value = filterQuery;
+            setActiveFilterChip(filterQuery);
+          }
+        });
+      });
+    }
 
     refreshStats();
   } catch (error) {
@@ -1454,12 +1816,14 @@ async function prendreObjet(objId, objName, borrowPayload) {
       showAppToast(data.detail || `Impossible de prendre ${objName}`, "error", "Echec de prise");
       return;
     }
-    const planningNote = data.planned_return_at
-      ? ` Retour prévu: ${new Date(data.planned_return_at).toLocaleString("fr-FR")}.`
-      : "";
-    await logUserAction("Objet", `Prise de ${objName}${planningNote}`, "Succes");
-    showAppToast((data.message || `${objName} pris`) + planningNote, "success", "Objet pris");
-    await loadUserThings(mainSearch.value || "");
+    
+    await logUserAction("Objet", `Prise de ${objName}`, "Succes");
+    showAppToast(`${objName} pris avec succès! Accès direct en cours...`, "success", "Objet pris");
+    
+    // Redirection automatique vers mesobjet.html pour accéder à l'objet
+    setTimeout(function() {
+      window.location.href = `mesobjet.html?thing_id=${encodeURIComponent(safeObjId)}`;
+    }, 500);
   } catch (error) {
     console.error("Erreur prendre:", error);
     showAppToast("Erreur reseau", "error", "Connexion");
@@ -1619,13 +1983,16 @@ async function verifyObjectInOverlay(objId, objName, statusCode, alreadyTakenFla
     statusPill.className = "object-status-pill active";
     statusPill.textContent = "Disponible";
     titleEl.textContent = "Voulez-vous prendre cet objet ?";
-    copyEl.textContent = "Statut vérifié: disponible. Choisissez maintenant une durée ou une date de retour avant de confirmer.";
+    copyEl.textContent = "Statut vérifié: disponible. Vous pouvez maintenant prendre l'objet immédiatement.";
     takeBtn.disabled = false;
     takeBtn.style.background = "linear-gradient(135deg, #0f766e, #0ea5a4)";
     takeBtn.style.color = "#ffffff";
     takeBtn.style.cursor = "pointer";
-    takeBtn.innerHTML = '<i class="fas fa-clock" style="margin-right: 6px;"></i>Choisir durée';
-    takeBtn.onclick = function () { openBorrowPlanningOverlay(); };
+    takeBtn.innerHTML = '<i class="fas fa-hand-holding" style="margin-right: 6px;"></i>Je prends';
+    takeBtn.onclick = function () { 
+      closeOverlay();
+      prendreObjet(selectedObjectDetails.id, selectedObjectDetails.name || "Objet", {});
+    };
     return;
   }
 
@@ -1799,7 +2166,6 @@ function openReportProblemModal(objId, objName) {
 function submitReportProblem(objId, objName) {
   const problemType = document.getElementById("problemType")?.value || "";
   const problemDesc = document.getElementById("problemDesc")?.value || "";
-  const reporter = getCurrentReporterInfo();
 
   if (!problemType || !problemType.trim()) {
     showAppToast("Veuillez sélectionner un type de problème", "error", "Validation");
@@ -1811,38 +2177,35 @@ function submitReportProblem(objId, objName) {
     return;
   }
 
-  userReports.push({ 
-    id: decodeHtmlEntities(objId), 
-    name: decodeHtmlEntities(objName) || "Objet sans nom", 
-    type: problemType,
-    description: problemDesc.trim(), 
-    reportedAt: new Date().toISOString(),
-    status: "En attente",
-    reporterName: reporter.reporterName,
-    reporterEmail: reporter.reporterEmail,
-    reporterId: reporter.reporterId
-  });
-  normalizeStoredCollections();
-  
-  // Envoyer à l'admin via API
+  // Envoyer le signalement à l'API (pas de localStorage)
   try {
-    fetch(`${apiBase}/notifications/problem-report`, {
+    fetch(`${apiBase}/problem-report`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        object_id: objId,
-        object_name: objName,
+        thing_id: objId,
+        thing_name: objName,
         problem_type: problemType,
-        description: problemDesc.trim(),
-        reporter_name: getCurrentReporterInfo().reporterName || ""
+        description: problemDesc.trim()
       })
-    }).catch(err => console.error("Erreur envoi signalement:", err));
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showAppToast(data.message || "Problème signalé avec succès", "success", "Signalement envoyé");
+        closeOverlay();
+      } else {
+        showAppToast(data.detail || "Erreur lors du signalement", "error", "Erreur");
+      }
+    })
+    .catch(err => {
+      console.error("Erreur envoi signalement:", err);
+      showAppToast("Erreur réseau", "error", "Connexion");
+    });
   } catch (error) {
     console.error("Erreur signalement:", error);
+    showAppToast("Erreur lors du signalement", "error", "Erreur");
   }
-
-  showAppToast("Problème signalé avec succès. L'admin sera notifié", "success", "Signalement envoyé");
-  closeOverlay();
 }
 
 function buildFavoritesOverlayHtml() {
@@ -1938,7 +2301,10 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-mainSearch.addEventListener("input", () => loadUserThings(mainSearch.value));
+mainSearch.addEventListener("input", () => {
+  setActiveFilterChip(mainSearch.value);
+  loadUserThings(mainSearch.value);
+});
 
 if (openHistoryOverlay) {
   openHistoryOverlay.addEventListener("click", async (event) => {
@@ -2035,6 +2401,12 @@ async function initUserDashboard() {
   if (userCurrentPos) {
     userCurrentPos.textContent = user_room;
   }
+  if (quickPositionCurrentRoom) {
+    quickPositionCurrentRoom.textContent = user_room;
+  }
+
+  await loadLayoutFloors();
+  renderQuickPositionSelectors(user_room);
 
   await loadUserThings("");
   await loadUserHistory();

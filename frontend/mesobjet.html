@@ -820,9 +820,6 @@
             <th data-key="table_location">Localisation</th>
             <th data-key="table_status">Statut</th>
             <th data-key="table_taken_on">Pris le</th>
-            <th>Retour prévu</th>
-            <th>Durée prévue</th>
-            <th>Temps restant</th>
             <th data-key="table_action">Action</th>
           </tr>
         </thead>
@@ -1543,12 +1540,6 @@
               <td>${badge}</td>
               <td>${sanitize(formatDate(item.taken_at))}</td>
               <td>
-                ${sanitize(plannedReturn)}
-                ${isLate ? '<div style="margin-top:4px;color:#be123c;font-size:11px;font-weight:800;">En retard</div>' : ''}
-              </td>
-              <td>${sanitize(plannedDuration)}</td>
-              <td>${renderRemainingCountdown(item.planned_return_at, "table")}</td>
-              <td>
                 <button type="button" class="return-btn" data-return-id="${sanitize(safeId)}">
                   <i class="fas fa-undo"></i> ${sanitize(tr("btn_return", "Rendre"))}
                 </button>
@@ -1666,6 +1657,17 @@
     startBorrowCountdowns();
     loadMesObjets().finally(function () {
       mesObjetsReady = true;
+      
+      // Auto-ouvrir le panneau de contrôle si thing_id est passé en paramètre
+      const urlParams = new URLSearchParams(window.location.search);
+      const thingId = urlParams.get('thing_id');
+      if (thingId) {
+        setTimeout(function() {
+          openFeatureOverlay(decodeURIComponent(thingId));
+          // Nettoyer l'URL pour éviter de réouvrir le panneau à chaque rechargement
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }, 300);
+      }
     });
 
     (function initNavCollectionsOverlay() {

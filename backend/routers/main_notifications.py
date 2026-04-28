@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from ..base import notifications_collection
+from ..base import notifications_collection, user_history_collection, things_collection
 from .main_auth import _get_user_from_token, extract_bearer_token, get_role_from_token, require_admin
 from ..notifications_service import create_notification
 
@@ -30,6 +30,13 @@ class NearbyObjectRequest(BaseModel):
     thing_name: str = Field(..., min_length=1, max_length=160)
     room: str = Field(default="", max_length=120)
     distance_m: float = Field(default=0, ge=0, le=5000)
+
+
+class ProblemReportRequest(BaseModel):
+    thing_id: str = Field(..., min_length=1, max_length=120)
+    thing_name: str = Field(..., min_length=1, max_length=160)
+    problem_type: str = Field(..., min_length=1, max_length=80)
+    description: str = Field(..., min_length=1, max_length=500)
 
 
 def _main_module():
@@ -283,3 +290,107 @@ def notify_nearby_object(request: Request, data: NearbyObjectRequest = Body(...)
     )
 
     return {"success": True, "deduped": False, "id": created_id}
+
+
+@notifications_router.post("/problem-report")
+def submit_problem_report(request: Request, data: ProblemReportRequest = Body(...)):
+    """Enregistrer un signalement d'objet et notifier tous les admins"""
+    user_id, user_email, role = _require_authenticated_user(request)
+    if role != "user":
+        raise HTTPException(status_code=403, detail="Endpoint réservé aux utilisateurs")
+
+    user_history = _user_history_collection()
+    things = _things_collection()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    thing_id = str(data.thing_id or "").strip()
+    thing_name = str(data.thing_name or "Objet").strip()
+    problem_type = str(data.problem_type or "").strip()
+    description = str(data.description or "").strip()
+
+    if not thing_id or not problem_type or not description:
+        raise HTTPException(status_code=400, detail="Champs requis manquants")
+
+    # Enregistrer le signalement dans user_history
+    report_doc = {
+        "user_id": user_id,
+        "email": user_email,
+        "action": "SIGNALEMENT_OBJET",
+        "detail": f"Signalement: {problem_type}",
+        "description": description,
+        "status": "signale",
+        "date": now.strftime("%d/%m/%Y %H:%M:%S"),
+        "created_at": now_iso,
+        "thing_id": thing_id,
+        "thing_name": thing_name,
+        "problem_type": problem_type,
+    }
+
+    result = user_history.insert_one(report_doc)
+    report_id = str(result.inserted_id)
+
+    # Créer notification pour TOUS les admins
+    message = f"Signalement de {user_email}: {thing_name} - {problem_type}\n{description}"
+    create_notification(
+        target_role="admin",
+        title=f"Nouveau signalement: {thing_name}",
+        message=message,
+        notif_type="warning",
+        actor_user_id=user_id,
+        actor_email=user_email,
+        metadata={
+            "action": "problem_report",
+            "thing_id": thing_id,
+            "problem_type": problem_type,
+            "report_id": report_id,
+        },
+    )
+
+    return {
+        "success": True,
+        "report_id": report_id,
+        "message": "Signalement enregistré. Les administrateurs en ont été notifiés.",
+    }
+
+
+def _user_history_collection():
+    module = _main_module()
+    return getattr(module, "user_history_collection", user_history_collection) if module else user_history_collection
+
+
+def _things_collection():
+    module = _main_module()
+    return getattr(module, "things_collection", things_collection) if module else things_collection
+
+
+@notifications_router.get("/problem-reports")
+def get_problem_reports(request: Request, limit: int = Query(default=50, ge=1, le=200)):
+    """Récupérer les signalements (ses propres pour user, tous pour admin)"""
+    user_id, user_email, role = _require_authenticated_user(request)
+    user_history = _user_history_collection()
+
+    if role == "admin":
+        # Les admins voient TOUS les signalements
+        query = {"action": "SIGNALEMENT_OBJET"}
+    else:
+        # Les users ne voient que les leurs
+        query = {"action": "SIGNALEMENT_OBJET", "user_id": user_id}
+
+    reports = list(user_history.find(query).sort("created_at", -1).limit(limit))
+    
+    serialized = []
+    for report in reports:
+        serialized.append({
+            "id": str(report.get("_id")),
+            "user_id": report.get("user_id", ""),
+            "email": report.get("email", ""),
+            "thing_id": report.get("thing_id", ""),
+            "thing_name": report.get("thing_name", ""),
+            "problem_type": report.get("problem_type", ""),
+            "description": report.get("description", ""),
+            "created_at": report.get("created_at", ""),
+            "date": report.get("date", ""),
+        })
+
+    return {"success": True, "reports": serialized}

@@ -115,26 +115,9 @@ def _parse_optional_iso_datetime(raw_value: str) -> datetime | None:
 
 
 def _resolve_borrow_plan(now: datetime, data: BorrowRequest) -> tuple[str, int, str]:
-    planned_return_raw = str(data.planned_return_at or "").strip()
-    if planned_return_raw:
-        planned_dt = _parse_iso_datetime(planned_return_raw)
-        min_allowed = now + timedelta(minutes=1)
-        max_allowed = now + timedelta(days=30)
-        if planned_dt < min_allowed:
-            raise HTTPException(status_code=400, detail="Choisissez une date de retour au moins 1 minute dans le futur")
-        if planned_dt > max_allowed:
-            raise HTTPException(status_code=400, detail="La date de retour ne peut pas depasser 30 jours")
-
-        delta_seconds = max(0.0, (planned_dt - now).total_seconds())
-        duration_minutes = int(max(1, (delta_seconds + 59) // 60))
-        return planned_dt.isoformat(), duration_minutes, "custom_date"
-
-    duration_minutes = int(data.duration_minutes or 0)
-    if duration_minutes > 0:
-        planned_dt = now + timedelta(minutes=duration_minutes)
-        return planned_dt.isoformat(), duration_minutes, "preset_duration"
-
-    return "", 0, ""
+    # Mode illimité : l'utilisateur peut utiliser l'objet aussi longtemps qu'il veut
+    # Pas de durée limite, pas de retour automatique
+    return "", 0, "unlimited"
 
 
 def _parse_log_datetime(raw_value: str) -> datetime:
@@ -496,7 +479,6 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
 
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    planned_return_at, planned_duration_minutes, borrow_mode = _resolve_borrow_plan(now, data)
     room_name = ""
     loc = thing.get("location")
     if isinstance(loc, dict):
@@ -514,9 +496,6 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
             "thing_id": thing_id,
             "thing_name": thing.get("name", ""),
             "salle": room_name,
-            "planned_return_at": planned_return_at,
-            "planned_duration_minutes": planned_duration_minutes,
-            "borrow_mode": borrow_mode,
             "returned": False,
         }
     )
@@ -533,16 +512,12 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
                     "user_id": user_id,
                     "user_email": email,
                     "taken_at": now_iso,
-                    "planned_return_at": planned_return_at,
-                    "planned_duration_minutes": planned_duration_minutes,
-                    "mode": borrow_mode,
                 },
             }
         },
     )
 
     thing_name = str(thing.get("name") or "objet")
-    planned_return_note = f" Retour prevu: {planned_return_at}." if planned_return_at else ""
     create_notification(
         target_role="user",
         recipient_user_id=user_id,
@@ -550,13 +525,11 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
         actor_user_id=user_id,
         actor_email=email,
         title="Objet pris",
-        message=f"Vous avez pris {thing_name}.{planned_return_note}",
+        message=f"Vous avez pris {thing_name}. Cliquez sur 'Rendre' quand vous aurez termine.",
         notif_type="success",
         metadata={
             "thing_id": thing_id,
             "action": "take",
-            "planned_return_at": planned_return_at,
-            "planned_duration_minutes": planned_duration_minutes,
         },
     )
     create_notification(
@@ -564,23 +537,19 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
         actor_user_id=user_id,
         actor_email=email,
         title="Emprunt utilisateur",
-        message=f"{email or user_id} a pris {thing_name}.{planned_return_note}",
+        message=f"{email or user_id} a pris {thing_name}.",
         notif_type="info",
         metadata={
             "thing_id": thing_id,
             "action": "take",
             "user_id": user_id,
-            "planned_return_at": planned_return_at,
-            "planned_duration_minutes": planned_duration_minutes,
         },
     )
 
     return {
         "success": True,
-        "message": f"Vous avez pris {thing.get('name', 'objet')}",
+        "message": f"Vous avez pris {thing.get('name', 'objet')}. Cliquez sur 'Rendre' quand vous aurez termine.",
         "timestamp": now_iso,
-        "planned_return_at": planned_return_at,
-        "planned_duration_minutes": planned_duration_minutes,
     }
 
 
