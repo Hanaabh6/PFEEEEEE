@@ -1010,7 +1010,11 @@
       closeSidebar();
     });
 
-    mediaQuery.addEventListener("change", resetDesktopState);
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", resetDesktopState);
+    } else if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(resetDesktopState);
+    }
     body.appendChild(toggleBtn);
     body.appendChild(backdrop);
     resetDesktopState();
