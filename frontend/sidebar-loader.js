@@ -33,11 +33,7 @@
       ".ib-sidebar[data-sidebar-role='admin'] .sidebar-logo,.ib-sidebar[data-sidebar-role='admin'] .logo{margin-bottom:12px !important;}" +
       ".ib-sidebar[data-sidebar-role='admin'] nav a,.ib-sidebar[data-sidebar-role='admin'] #sideNav a,.ib-sidebar[data-sidebar-role='admin'] .sidebar-nav a{padding:11px 13px !important;margin:7px 0 !important;line-height:1.2 !important;}" +
       ".ib-sidebar[data-sidebar-role='admin'] .lang{padding:9px !important;}" +
-      ".ib-sidebar-toggle{display:none;position:fixed;top:14px;left:14px;z-index:2450;width:44px;height:44px;border-radius:999px;border:1px solid rgba(148,163,184,0.65);background:rgba(15,23,42,0.95);color:#fff;box-shadow:0 14px 28px rgba(2,6,23,0.38);cursor:pointer;align-items:center;justify-content:center;font-size:18px;}" +
-      ".ib-sidebar-backdrop{display:none;position:fixed;inset:0;z-index:2390;background:rgba(2,6,23,0.62);backdrop-filter:blur(2px);}" +
-      ".ib-sidebar-backdrop.is-visible{display:block;}" +
-      "@media (max-width:1080px){.ib-sidebar-toggle{display:flex;}.ib-sidebar{position:fixed !important;top:0;left:0;bottom:0;z-index:2400;width:min(84vw,320px) !important;min-height:100vh !important;max-height:100vh;overflow:auto;transform:translateX(-108%);transition:transform .26s ease;}.ib-sidebar.is-open{transform:translateX(0);} }" +
-      "@media (max-width:480px){.ib-sidebar{width:min(90vw,320px) !important;padding:16px !important;}.ib-sidebar nav a,.ib-sidebar #sideNav a,.ib-sidebar .sidebar-nav a{font-size:14px !important;padding:10px 11px !important;margin:4px 0 !important;}}";
+      "@media (max-width:1080px){.ib-sidebar{position:static;width:100%;min-height:auto;}}";
     document.head.appendChild(style);
   }
 
@@ -935,87 +931,6 @@
     }
   }
 
-  function setupMobileSidebar(sidebarRoot) {
-    if (!sidebarRoot || sidebarRoot.getAttribute("data-mobile-sidebar-bound") === "true") {
-      return;
-    }
-    sidebarRoot.setAttribute("data-mobile-sidebar-bound", "true");
-
-    var mediaQuery = window.matchMedia("(max-width: 1080px)");
-    var body = document.body;
-    var toggleBtn = document.createElement("button");
-    toggleBtn.type = "button";
-    toggleBtn.className = "ib-sidebar-toggle";
-    toggleBtn.setAttribute("aria-label", "Ouvrir le menu");
-    toggleBtn.setAttribute("aria-expanded", "false");
-    toggleBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
-
-    var backdrop = document.createElement("div");
-    backdrop.className = "ib-sidebar-backdrop";
-
-    function isMobile() {
-      return mediaQuery.matches;
-    }
-
-    function syncBodyOverflow() {
-      var open = sidebarRoot.classList.contains("is-open") && isMobile();
-      body.style.overflow = open ? "hidden" : "";
-    }
-
-    function openSidebar() {
-      if (!isMobile()) {
-        return;
-      }
-      sidebarRoot.classList.add("is-open");
-      backdrop.classList.add("is-visible");
-      toggleBtn.setAttribute("aria-expanded", "true");
-      toggleBtn.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
-      syncBodyOverflow();
-    }
-
-    function closeSidebar() {
-      sidebarRoot.classList.remove("is-open");
-      backdrop.classList.remove("is-visible");
-      toggleBtn.setAttribute("aria-expanded", "false");
-      toggleBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
-      syncBodyOverflow();
-    }
-
-    function resetDesktopState() {
-      if (!isMobile()) {
-        closeSidebar();
-      }
-    }
-
-    toggleBtn.addEventListener("click", function () {
-      if (sidebarRoot.classList.contains("is-open")) {
-        closeSidebar();
-      } else {
-        openSidebar();
-      }
-    });
-
-    backdrop.addEventListener("click", closeSidebar);
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebarRoot.classList.contains("is-open")) {
-        closeSidebar();
-      }
-    });
-
-    sidebarRoot.addEventListener("click", function (event) {
-      var link = event.target.closest("a[href]");
-      if (!link || !isMobile()) {
-        return;
-      }
-      closeSidebar();
-    });
-
-    mediaQuery.addEventListener("change", resetDesktopState);
-    body.appendChild(toggleBtn);
-    body.appendChild(backdrop);
-    resetDesktopState();
-  }
-
   var path = (window.location.pathname.split("/").pop() || "").toLowerCase();
   var page = (path.replace(".html", "") || "index").toLowerCase();
   var role = detectRole(page);
@@ -1052,7 +967,6 @@
     initUnifiedUserFavoritesOverlay(node);
     initUnifiedUserReportsOverlay(node);
   }
-  setupMobileSidebar(node);
 
   var currentScript = document.currentScript;
   if (currentScript && currentScript.parentNode) {
