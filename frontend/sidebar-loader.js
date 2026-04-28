@@ -718,6 +718,14 @@
       return "pending";
     }
 
+    function formatReportStatusLabel(value) {
+      var txt = String(value || "").trim();
+      if (!txt || txt.toLowerCase() === "signale") {
+        return "En attente";
+      }
+      return txt;
+    }
+
     function openReportComposer() {
       reportComposerState = {
         selectedThingId: ""
@@ -802,15 +810,24 @@
           var date = rep.created_at ? new Date(rep.created_at).toLocaleDateString("fr-FR") : (rep.date || "-");
           var name = String(rep.thing_name || "Signalement").trim() || "Signalement";
           var type = String(rep.problem_type || "Non spécifié").trim() || "Non spécifié";
+          var location = String(rep.thing_location || "").trim();
+          var objectType = String(rep.thing_type || "").trim();
+          var status = formatReportStatusLabel(rep.status);
           var subtitle = "<strong>Problème:</strong> " + esc(type);
+          if (location) {
+            subtitle += " • <strong>Position:</strong> " + esc(location);
+          }
           subtitle += " • " + esc(date);
+          if (objectType) {
+            subtitle += " • <strong>Type d'objet:</strong> " + esc(objectType);
+          }
           cards +=
             '<div class="ib-report-item">' +
               '<div class="ib-report-row">' +
                 '<div>' +
                   '<p class="ib-report-name">' + esc(name) + '</p>' +
                   '<p class="ib-report-sub">' + subtitle + '</p>' +
-                  '<span class="ib-report-status pending">En attente</span>' +
+                  '<span class="ib-report-status ' + statusClass(status) + '">' + esc(status) + '</span>' +
                   '<p class="ib-report-text">' + esc(String(rep.description || "Description non fournie")) + '</p>' +
                 '</div>' +
               '</div>' +

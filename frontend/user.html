@@ -460,14 +460,146 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   color: #be123c;
 }
 
+.user-top-area {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.user-locator-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+}
+
+.user-locator-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.user-locator-field {
+  display: grid;
+  gap: 6px;
+}
+
+.user-locator-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.user-locator-select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.user-locator-select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+  outline: none;
+}
+
+.user-locator-btn {
+  border: 1px solid #10b981;
+  background: #10b981;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-locator-btn:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.user-locator-btn.ghost {
+  background: #fff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.user-locator-btn.ghost:hover {
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.user-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.user-search-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.user-search-input {
+  flex: 1 1 auto;
+  min-width: 300px;
+  max-width: 100%;
+}
+
+.user-search-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.user-current-pos {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  white-space: nowrap;
+}
+
+.user-current-pos i {
+  font-size: 14px;
+}
+
 .user-quick-filters {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
-  margin: 8px 0;
   overflow-x: auto;
-  padding-bottom: 2px;
+  overflow-y: hidden;
+  padding: 2px 0 6px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .filter-chip {
@@ -555,7 +687,10 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   .profile-grid { grid-template-columns: 1fr; }
   .object-detail-grid { grid-template-columns: 1fr; }
   .object-sheet-head { flex-direction: column; }
-  .user-quick-filters { flex-wrap: wrap; overflow-x: auto; padding-bottom: 4px; }
+  .user-locator-grid { grid-template-columns: 1fr; }
+  .user-search-row { align-items: stretch; }
+  .user-search-left { flex-direction: column; align-items: stretch; }
+  .user-search-right { justify-content: space-between; }
 }
 </style>
   <link rel="stylesheet" href="theme.css">
@@ -583,21 +718,38 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   <script src="sidebar-loader.js"></script>
 
   <div class="main">
-    <div class="topbar user-toolbar" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-      <div class="compact-position-control">
-        <i class="fas fa-location-dot" style="color: #10b981; font-size: 12px;"></i>
-        <select id="quickFloorSelectCompact" class="compact-position-select"></select>
-        <select id="quickRoomSelectCompact" class="compact-position-select"></select>
-        <button type="button" id="quickSetPositionBtnCompact" class="compact-position-btn">✓</button>
-        <span id="userCurrentPos" style="font-size: 11px; font-weight: 700; color: #0f172a; white-space: nowrap; margin-left: 4px;">-</span>\n      </div>
-      <input id="mainSearch" class="search" type="search" placeholder="Rechercher un objet..." data-key="search_objects" data-attr="placeholder" aria-label="Rechercher un objet" style="flex: 1; min-width: 250px;">
-      <div class="profile">
-        <button class="avatar" id="profileButton" type="button" aria-haspopup="menu" aria-controls="menu" aria-expanded="false">A</button>
-        <div class="dropdown" id="menu" role="menu" aria-labelledby="profileButton">
-          <strong id="menuName">Amel Amiri</strong>
-          <hr>
-          <a href="#" role="menuitem" id="openProfileOverlay" data-key="menu_profile">Mon profil</a>
-          <a href="#" role="menuitem" id="logoutLink" data-key="logout">Deconnexion</a>
+    <div class="user-top-area">
+      <section class="user-locator-panel">
+        <div class="user-locator-grid">
+          <div class="user-locator-field">
+            <label for="quickFloorSelectCompact" class="user-locator-label">Etage</label>
+            <select id="quickFloorSelectCompact" class="user-locator-select"></select>
+          </div>
+          <div class="user-locator-field">
+            <label for="quickRoomSelectCompact" class="user-locator-label">Salle</label>
+            <select id="quickRoomSelectCompact" class="user-locator-select"></select>
+          </div>
+          <button type="button" id="quickSetPositionBtnCompact" class="user-locator-btn">
+            <i class="fas fa-location-dot"></i>
+            Je suis ici
+          </button>
+          <a href="localisations-user.html" class="user-locator-btn ghost" id="openUserMapBtn" onclick="window.location.href='localisations-user.html'">
+            <i class="fas fa-map"></i>
+            Consulter le plan
+          </a>
+        </div>
+      </section>
+
+      <div class="user-search-row">
+        <div class="user-search-left">
+          <div class="user-current-pos" aria-live="polite">
+            <i class="fas fa-street-view"></i>
+            <span>Ma Position :</span>
+            <strong id="userCurrentPos">-</strong>
+          </div>
+        </div>
+        <div class="user-search-right">
+          <input id="mainSearch" class="search user-search-input" type="search" placeholder="Rechercher un objet..." data-key="search_objects" data-attr="placeholder" aria-label="Rechercher un objet">
         </div>
       </div>
     </div>
@@ -613,8 +765,8 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
           <tr>
             <th scope="col" data-key="table_name">Nom</th>
             <th scope="col" data-key="table_type">Type</th>
-            <th scope="col" data-key="table_location">Localisation</th>
-            <th scope="col">Distance</th>
+            <th scope="col">Salle</th>
+            <th scope="col">Etage</th>
             <th scope="col">Action</th>
           </tr>
         </thead>
@@ -688,6 +840,7 @@ let userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
 let userReports = JSON.parse(localStorage.getItem("userReports") || "[]");
 let userThingsAutoRefreshTimer = null;
 let userObjectTypeFilters = [];
+let activeQuickFilterQuery = "";
 
 if (!userToken) window.location.href = "login.html";
 
@@ -938,7 +1091,7 @@ async function applyQuickUserPosition() {
   }
 
   showAppToast(`Position mise a jour: ${selectedRoom}`, "success", "Position");
-  await loadUserThings(mainSearch.value || "");
+  await loadUserThings(String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : "") || ""));
 }
 
 function initQuickPositionBar() {
@@ -972,8 +1125,8 @@ function extractTypeFilters(list) {
 function renderQuickFilters() {
   const userQuickFilters = document.getElementById('userQuickFilters');
   if (!userQuickFilters) return;
-  
-  const activeQuery = mainSearch ? String(mainSearch.value || '') : '';
+
+  const activeQuery = String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : '') || '');
   const buttons = [{ label: 'Tout', query: '' }].concat(
     userObjectTypeFilters.map(function (label) {
       return { label: label, query: label };
@@ -1019,6 +1172,7 @@ function setActiveFilterChip(query) {
     button.classList.toggle('is-active', candidate === normalizedQuery);
   });
 }
+
 
 function toStatusCode(statusValue) {
   const raw = String(statusValue || "").toLowerCase().trim();
@@ -1256,10 +1410,12 @@ function openBorrowPlanningOverlay() {
 }
 
 function toggleMenu() {
+  if (!menu || !profileButton) return;
   const isOpen = menu.classList.toggle("open");
   profileButton.setAttribute("aria-expanded", String(isOpen));
 }
 function closeMenu() {
+  if (!menu || !profileButton) return;
   menu.classList.remove("open");
   profileButton.setAttribute("aria-expanded", "false");
 }
@@ -1312,8 +1468,8 @@ function getDisplayNameFromStorage() {
 function applyDisplayName(displayName) {
   const safe = String(displayName || "").trim();
   if (!safe) return;
-  menuName.textContent = safe;
-  profileButton.textContent = (safe[0] || "U").toUpperCase();
+  if (menuName) menuName.textContent = safe;
+  if (profileButton) profileButton.textContent = (safe[0] || "U").toUpperCase();
 }
 
 function normalizeText(value) {
@@ -1474,7 +1630,8 @@ async function fetchProfileStats() {
 
 function buildProfileOverlayHtml(profile, stats) {
   const email = (profile && profile.email) || localStorage.getItem("userEmail") || "user@intellibuild.com";
-  const displayName = getDisplayNameFromStorage() || menuName.textContent || "Utilisateur";
+  const menuLabel = menuName ? menuName.textContent : "";
+  const displayName = getDisplayNameFromStorage() || menuLabel || "Utilisateur";
   const initial = (displayName[0] || "U").toUpperCase();
   const userRoom = localStorage.getItem("user_room") || "Non definie";
   const memberSince = historyEntries.length ? formatHumanDate(historyEntries[historyEntries.length - 1]?.created_at) : formatHumanDate(new Date().toISOString());
@@ -1728,6 +1885,7 @@ async function loadUserThings(query) {
       const objectName = String(item.name || "Objet");
       const objectType = String(item.type || item["@type"] || "-");
       const objectLocation = String(canonicalItemLocation || "-");
+      const floorLabel = (findFloorByRoom(canonicalItemLocation)?.name) || "-";
       const objectDescription = String(item.description || item.details || item.note || "Aucune description disponible.");
       const safeObjectId = objectId.replace(/"/g, "&quot;");
       objectDetailsCache.set(objectId, {
@@ -1740,6 +1898,7 @@ async function loadUserThings(query) {
         statusCode: statusCode,
         statusText: statusText,
         distanceText: distanceText,
+        floorLabel: floorLabel,
         sameRoom: sameRoom
       });
 
@@ -1748,7 +1907,7 @@ async function loadUserThings(query) {
           <td>${sanitizeText(objectName)}</td>
           <td>${sanitizeText(objectType)}</td>
           <td>${sanitizeText(objectLocation)}</td>
-          <td>${sanitizeText(distanceText)}</td>
+          <td>${sanitizeText(floorLabel)}</td>
           <td><button type="button" class="verify-btn" onclick="event.stopPropagation(); checkAvailability('${safeObjectId}', '${sanitizeText(objectName)}', '${statusCode}')" style="border: none; background: #10b981; color: white; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px;">Vérifier</button></td>
         </tr>
       `;
@@ -1774,10 +1933,9 @@ async function loadUserThings(query) {
       userQuickFilters.querySelectorAll('[data-quick-query]').forEach(function (button) {
         button.addEventListener('click', function () {
           const filterQuery = String(this.getAttribute('data-quick-query') || '').trim();
-          if (mainSearch) {
-            mainSearch.value = filterQuery;
-            setActiveFilterChip(filterQuery);
-          }
+          activeQuickFilterQuery = filterQuery;
+          setActiveFilterChip(filterQuery);
+          loadUserThings(filterQuery);
         });
       });
     }
@@ -1792,7 +1950,7 @@ function startUserThingsAutoRefresh() {
   if (userThingsAutoRefreshTimer) clearInterval(userThingsAutoRefreshTimer);
   userThingsAutoRefreshTimer = setInterval(function () {
     if (document.hidden || !infoOverlay.hidden) return;
-    loadUserThings(mainSearch.value || "");
+    loadUserThings(String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : "") || ""));
   }, 15000);
 }
 
@@ -1853,6 +2011,7 @@ function openObjectDecision(row) {
     statusCode: objStatus,
     statusText: getStatusLabel(objStatus),
     distanceText: "-",
+    floorLabel: "-",
     sameRoom: false
   };
 
@@ -1866,7 +2025,7 @@ function openObjectDecision(row) {
   
   const proximityNote = selectedObjectDetails.sameRoom
     ? "Objet disponible dans votre salle actuelle."
-    : `Distance estimée: ${sanitizeText(selectedObjectDetails.distanceText || "-")}.`;
+    : `Etage: ${sanitizeText(selectedObjectDetails.floorLabel || "-")}.`;
   
   const safeName = sanitizeText(selectedObjectDetails.name || "Objet").replace(/'/g, "&apos;");
   const isFavorite = userFavorites.some((f) => String(f.id) === String(objId));
@@ -1899,8 +2058,8 @@ function openObjectDecision(row) {
             <span class="detail-value">${sanitizeText(selectedObjectDetails.location || "-")}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">Distance</span>
-            <span class="detail-value">${sanitizeText(selectedObjectDetails.distanceText || "-")}</span>
+            <span class="detail-label">Etage</span>
+            <span class="detail-value">${sanitizeText(selectedObjectDetails.floorLabel || "-")}</span>
           </div>
         </div>
 
@@ -2036,7 +2195,7 @@ async function retournerObjet(objId) {
     }
     await logUserAction("Objet", `Retour de l'objet ${safeObjId}`, "Succes");
     showAppToast(data.message || "Objet retourne", "success", "Objet retourne");
-    await loadUserThings(mainSearch.value || "");
+    await loadUserThings(String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : "") || ""));
   } catch (error) {
     console.error("Erreur retourner:", error);
     showAppToast("Erreur reseau", "error", "Connexion");
@@ -2290,10 +2449,12 @@ function removeReport(idx) {
   showAppToast("Signalement supprimé", "success", "Suppression");
 }
 
-profileButton.addEventListener("click", toggleMenu);
-document.addEventListener("click", (event) => {
-  if (!(menu.contains(event.target) || profileButton.contains(event.target))) closeMenu();
-});
+if (profileButton && menu) {
+  profileButton.addEventListener("click", toggleMenu);
+  document.addEventListener("click", (event) => {
+    if (!(menu.contains(event.target) || profileButton.contains(event.target))) closeMenu();
+  });
+}
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeMenu();
@@ -2302,8 +2463,9 @@ document.addEventListener("keydown", (event) => {
 });
 
 mainSearch.addEventListener("input", () => {
-  setActiveFilterChip(mainSearch.value);
-  loadUserThings(mainSearch.value);
+  activeQuickFilterQuery = String(mainSearch.value || "");
+  setActiveFilterChip(activeQuickFilterQuery);
+  loadUserThings(activeQuickFilterQuery);
 });
 
 if (openHistoryOverlay) {
@@ -2323,13 +2485,14 @@ if (openReportsOverlay) {
     openOverlay("Problèmes signalés", buildReportsOverlayHtml());
   });
 }
-openProfileOverlay.addEventListener("click", async (event) => {
-  event.preventDefault();
-  await loadUserProfile();
-  await loadUserHistory();
-  const stats = await fetchProfileStats();
-  closeMenu();
-  openOverlay("Mon profil", buildProfileOverlayHtml(userProfileData || {}, stats));
+if (openProfileOverlay) {
+  openProfileOverlay.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await loadUserProfile();
+    await loadUserHistory();
+    const stats = await fetchProfileStats();
+    closeMenu();
+    openOverlay("Mon profil", buildProfileOverlayHtml(userProfileData || {}, stats));
 
   const saveBtn = document.getElementById("saveProfileNameBtn");
   const input = document.getElementById("profileDisplayNameInput");
@@ -2360,30 +2523,33 @@ openProfileOverlay.addEventListener("click", async (event) => {
     });
   }
 
-  if (logoutFromProfileBtn) {
-    logoutFromProfileBtn.addEventListener("click", function () {
-      localStorage.removeItem("userToken");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("userDisplayName");
-      window.location.href = "login.html";
-    });
-  }
-});
+    if (logoutFromProfileBtn) {
+      logoutFromProfileBtn.addEventListener("click", function () {
+        localStorage.removeItem("userToken");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userDisplayName");
+        window.location.href = "login.html";
+      });
+    }
+  });
+}
 
 overlayBackdrop.addEventListener("click", closeOverlay);
 overlayClose.addEventListener("click", closeOverlay);
 
-logoutLink.addEventListener("click", function (event) {
-  event.preventDefault();
-  localStorage.removeItem("userToken");
-  localStorage.removeItem("userRole");
-  localStorage.removeItem("userEmail");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("userDisplayName");
-  window.location.href = "login.html";
-});
+if (logoutLink) {
+  logoutLink.addEventListener("click", function (event) {
+    event.preventDefault();
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userDisplayName");
+    window.location.href = "login.html";
+  });
+}
 
 async function initUserDashboard() {
   normalizeStoredCollections();
@@ -2422,7 +2588,7 @@ async function initUserDashboard() {
 
 document.addEventListener("visibilitychange", function () {
   if (!document.hidden) {
-    loadUserThings(mainSearch.value || "");
+    loadUserThings(String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : "") || ""));
   }
 });
 

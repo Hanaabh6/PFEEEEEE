@@ -6,7 +6,7 @@ import re
 
 from ..base import keyword_index_collection, things_collection
 from .main_borrow import expire_due_borrows
-from .main_localisation import compute_distance_and_room_flags, normalize_text
+from .main_localisation import ARCHI_DATA, canonical_room_name, compute_distance_and_room_flags, normalize_text
 
 recherche_router = APIRouter(tags=["recherche"])
 
@@ -162,6 +162,13 @@ SHORT_TOKEN_SYNONYM_WHITELIST = {
     "tv", "cam", "nas", "ups", "ap", "rfid", "nfc", "co2", "ac", "cvc", "led", "mic", "pir"
 }
 
+FLOOR_BY_ROOM_NORM = {
+    normalize_text(room): int(floor.get("id", -1))
+    for floor in ARCHI_DATA
+    for room in (floor.get("rooms") or [])
+    if normalize_text(room)
+}
+
 
 def _tokenize_query(text: str) -> list[str]:
     # Tokenization robuste: retire ponctuation/accents et conserve uniquement les mots utiles.
@@ -190,6 +197,88 @@ def _normalize_phrase(text: str) -> str:
 
 def _token_set(text: str) -> set[str]:
     return set(_tokenize_query(text))
+
+
+def _extract_floor_query(raw_query: str) -> int | None:
+    q_norm = normalize_text(raw_query)
+    if not q_norm:
+        return None
+
+    if q_norm.isdigit():
+        try:
+            return int(q_norm)
+        except (TypeError, ValueError):
+            return None
+
+    if "rdc" in q_norm or "rez de chaussee" in q_norm or "rez-de-chaussee" in q_norm:
+        return 0
+
+    match = re.search(r"(?:etage|etg|niveau|floor)\s*([0-9]{1,2})", q_norm)
+    if not match:
+        match = re.search(r"([0-9]{1,2})\s*(?:e|eme|er)?\s*(?:etage|etg|niveau|floor)", q_norm)
+    if not match:
+        return None
+
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_item_floor_id(item: dict) -> int | None:
+    loc = item.get("location", "")
+    room_value = ""
+    floor_raw = ""
+
+    if isinstance(loc, dict):
+        room_value = str(loc.get("room") or loc.get("name") or "").strip()
+        floor_raw = str(loc.get("etage") or loc.get("floor") or loc.get("level") or "").strip()
+    else:
+        room_value = str(loc or "").strip()
+
+    if floor_raw:
+        floor_norm = normalize_text(floor_raw)
+        if "rdc" in floor_norm or "rez de chaussee" in floor_norm or "rez-de-chaussee" in floor_norm:
+            return 0
+        match = re.search(r"([0-9]{1,2})", floor_norm)
+        if match:
+            try:
+                return int(match.group(1))
+            except (TypeError, ValueError):
+                pass
+
+    if room_value:
+        canonical = canonical_room_name(room_value) or room_value
+        floor_id = FLOOR_BY_ROOM_NORM.get(normalize_text(canonical))
+        if floor_id is not None and floor_id >= 0:
+            return floor_id
+
+    return None
+
+
+def _floor_matches_filter(floor_id: int | None, raw_query: str, floor_filter: int | None) -> bool:
+    if floor_filter is None:
+        return True
+    if floor_id is None:
+        return False
+
+    if floor_filter < 10:
+        tail_pattern = rf"(?:etage|etg|niveau|floor)\s*{floor_filter}$"
+        if re.search(tail_pattern, normalize_text(raw_query)):
+            return str(floor_id).startswith(str(floor_filter))
+
+    return floor_id == floor_filter
+
+
+def _is_floor_only_query(raw_query: str, floor_filter: int | None) -> bool:
+    if floor_filter is None:
+        return False
+    q_norm = normalize_text(raw_query)
+    if not q_norm:
+        return False
+    if q_norm.isdigit():
+        return True
+    return bool(re.fullmatch(r"(?:etage|etg|niveau|floor)\s*[0-9]{1,2}", q_norm))
 
 
 def _pattern_matches_content(pattern: str, content_norm: str, content_tokens: set[str]) -> bool:
@@ -447,6 +536,7 @@ def _prefix_bonus(item: dict, query_norm: str, tokens: list[str]) -> int:
 def _search_logic(data: SearchRequest) -> list[dict]:
     raw_query = (data.search_query or "").strip()
     position_defined = _has_defined_position(data)
+    floor_filter = _extract_floor_query(raw_query)
 
     if not raw_query:
         results = list(things_collection.find({}).sort("name", 1))
@@ -516,6 +606,11 @@ def _search_logic(data: SearchRequest) -> list[dict]:
             fuzzy_score = int(fuzz.partial_ratio(q_norm, focus))
             if fuzzy_score >= 80:
                 candidates.append(item)
+
+    if floor_filter is not None:
+        if not candidates or _is_floor_only_query(raw_query, floor_filter):
+            candidates = list(things_collection.find({}))
+        candidates = [item for item in candidates if _floor_matches_filter(_get_item_floor_id(item), raw_query, floor_filter)]
 
     # Etape C: scoreTextuel + bonusSpatial => scoreFinal.
     if position_defined:

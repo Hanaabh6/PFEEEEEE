@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..base import notifications_collection, user_history_collection, things_collection
 from .main_auth import _get_user_from_token, extract_bearer_token, get_role_from_token, require_admin
+from .main_crud import _canonical_availability
 from ..notifications_service import create_notification
 
 notifications_router = APIRouter(tags=["notifications"])
@@ -37,6 +38,10 @@ class ProblemReportRequest(BaseModel):
     thing_name: str = Field(..., min_length=1, max_length=160)
     problem_type: str = Field(..., min_length=1, max_length=80)
     description: str = Field(..., min_length=1, max_length=500)
+
+
+class ProblemReportDecisionRequest(BaseModel):
+    decision: str = Field(..., min_length=3, max_length=40)
 
 
 def _main_module():
@@ -97,6 +102,121 @@ def _serialize_notification(doc: dict) -> dict:
         "actor_email": doc.get("actor_email", ""),
         "metadata": doc.get("metadata", {}),
     }
+
+
+def _extract_room_label(location) -> str:
+    if isinstance(location, dict):
+        return str(location.get("room") or location.get("name") or "").strip()
+    return str(location or "").strip()
+
+
+def _extract_thing_snapshot(thing_doc: dict | None) -> dict:
+    thing_doc = thing_doc or {}
+    return {
+        "thing_name": str(thing_doc.get("name") or "").strip(),
+        "thing_type": str(thing_doc.get("type") or thing_doc.get("@type") or "").strip(),
+        "thing_location": _extract_room_label(thing_doc.get("location")),
+        "thing_status": str(thing_doc.get("status") or thing_doc.get("availability") or "").strip(),
+        "thing_maintenance_state": str(thing_doc.get("maintenance_state") or "").strip(),
+    }
+
+
+def _build_thing_snapshot_map(reports: list[dict]) -> dict[str, dict]:
+    thing_ids: list[str] = []
+    seen: set[str] = set()
+    for report in reports:
+        thing_id = str(report.get("thing_id") or "").strip()
+        if thing_id and thing_id not in seen:
+            seen.add(thing_id)
+            thing_ids.append(thing_id)
+
+    if not thing_ids:
+        return {}
+
+    rows = list(
+        _things_collection().find(
+            {"id": {"$in": thing_ids}},
+            {
+                "id": 1,
+                "name": 1,
+                "type": 1,
+                "location": 1,
+                "status": 1,
+                "availability": 1,
+                "maintenance_state": 1,
+            },
+        )
+    )
+    snapshots: dict[str, dict] = {}
+    for row in rows:
+        thing_id = str(row.get("id") or "").strip()
+        if thing_id:
+            snapshots[thing_id] = _extract_thing_snapshot(row)
+    return snapshots
+
+
+def _serialize_problem_report(report: dict, thing_snapshots: dict[str, dict] | None = None) -> dict:
+    thing_id = str(report.get("thing_id") or "").strip()
+    snapshot = (thing_snapshots or {}).get(thing_id, {})
+    thing_name = str(report.get("thing_name") or snapshot.get("thing_name") or "Objet").strip() or "Objet"
+    thing_type = str(report.get("thing_type") or snapshot.get("thing_type") or "").strip()
+    thing_location = str(report.get("thing_location") or snapshot.get("thing_location") or "").strip()
+    thing_status = str(snapshot.get("thing_status") or report.get("thing_status") or "").strip()
+    thing_maintenance_state = str(snapshot.get("thing_maintenance_state") or report.get("thing_maintenance_state") or "").strip()
+    status = str(report.get("status") or "signale").strip() or "signale"
+
+    return {
+        "id": str(report.get("_id")),
+        "user_id": str(report.get("user_id") or "").strip(),
+        "email": str(report.get("email") or "").strip(),
+        "thing_id": thing_id,
+        "thing_name": thing_name,
+        "thing_type": thing_type,
+        "thing_location": thing_location,
+        "thing_status": thing_status,
+        "thing_maintenance_state": thing_maintenance_state,
+        "problem_type": str(report.get("problem_type") or "").strip(),
+        "description": str(report.get("description") or "").strip(),
+        "status": status,
+        "decision": str(report.get("decision") or "").strip(),
+        "created_at": report.get("created_at", ""),
+        "updated_at": report.get("updated_at", ""),
+        "reviewed_at": report.get("reviewed_at", ""),
+        "reviewed_by_user_id": str(report.get("reviewed_by_user_id") or "").strip(),
+        "reviewed_by_email": str(report.get("reviewed_by_email") or "").strip(),
+        "date": report.get("date", ""),
+    }
+
+
+def _normalize_problem_report_decision(decision: str) -> str:
+    value = str(decision or "").strip().lower()
+    if value in {"accept", "accepted", "accepte", "approuve"}:
+        return "accept"
+    if value in {"reject", "rejected", "refuse", "refus", "rejete", "rejet"}:
+        return "reject"
+    if value in {"reactivate", "resolved", "resolve", "remis_en_service", "remise_en_service"}:
+        return "reactivate"
+    raise HTTPException(status_code=400, detail="Decision invalide")
+
+
+def _update_reported_thing_state(thing_id: str, status: str, maintenance_state: str) -> dict:
+    clean_thing_id = str(thing_id or "").strip()
+    if not clean_thing_id:
+        return {}
+
+    update_fields = {
+        "status": status,
+        "availability": _canonical_availability(status),
+        "maintenance_state": str(maintenance_state or "").strip(),
+    }
+    updated = _things_collection().find_one_and_update(
+        {"id": clean_thing_id},
+        {"$set": update_fields},
+        return_document=True,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Objet '{clean_thing_id}' introuvable")
+    return updated
 
 
 @notifications_router.get("/notifications/me")
@@ -312,6 +432,11 @@ def submit_problem_report(request: Request, data: ProblemReportRequest = Body(..
     if not thing_id or not problem_type or not description:
         raise HTTPException(status_code=400, detail="Champs requis manquants")
 
+    thing_doc = things.find_one({"id": thing_id}) or {}
+    thing_snapshot = _extract_thing_snapshot(thing_doc)
+    if thing_snapshot.get("thing_name"):
+        thing_name = thing_snapshot["thing_name"]
+
     # Enregistrer le signalement dans user_history
     report_doc = {
         "user_id": user_id,
@@ -320,10 +445,16 @@ def submit_problem_report(request: Request, data: ProblemReportRequest = Body(..
         "detail": f"Signalement: {problem_type}",
         "description": description,
         "status": "signale",
+        "decision": "",
         "date": now.strftime("%d/%m/%Y %H:%M:%S"),
         "created_at": now_iso,
+        "updated_at": now_iso,
         "thing_id": thing_id,
         "thing_name": thing_name,
+        "thing_type": thing_snapshot.get("thing_type", ""),
+        "thing_location": thing_snapshot.get("thing_location", ""),
+        "thing_status": thing_snapshot.get("thing_status", ""),
+        "thing_maintenance_state": thing_snapshot.get("thing_maintenance_state", ""),
         "problem_type": problem_type,
     }
 
@@ -364,10 +495,97 @@ def _things_collection():
     return getattr(module, "things_collection", things_collection) if module else things_collection
 
 
+@notifications_router.patch("/problem-reports/{report_id}/decision")
+def review_problem_report(report_id: str, request: Request, data: ProblemReportDecisionRequest = Body(...)):
+    """Traiter un signalement de manière persistée pour tous les admins."""
+    require_admin(request)
+    admin_user_id, admin_email, _ = _require_authenticated_user(request)
+    user_history = _user_history_collection()
+
+    try:
+        report_object_id = ObjectId(report_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="report_id invalide")
+
+    report = user_history.find_one({"_id": report_object_id, "action": "SIGNALEMENT_OBJET"})
+    if not report:
+        raise HTTPException(status_code=404, detail="Signalement introuvable")
+
+    decision = _normalize_problem_report_decision(data.decision)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    thing_id = str(report.get("thing_id") or "").strip()
+    thing_name = str(report.get("thing_name") or "Objet").strip() or "Objet"
+
+    update_fields = {
+        "updated_at": now_iso,
+        "reviewed_at": now_iso,
+        "reviewed_by_user_id": admin_user_id,
+        "reviewed_by_email": admin_email,
+        "decision": decision,
+    }
+    notification_title = ""
+    notification_message = ""
+    notification_type = "info"
+
+    if decision == "accept":
+        if thing_id:
+            updated_thing = _update_reported_thing_state(thing_id, "inactive", "en panne")
+            update_fields.update(_extract_thing_snapshot(updated_thing))
+            update_fields["status"] = "Accepte - objet en panne"
+        else:
+            update_fields["status"] = "Accepte - signalement recu"
+        notification_title = "Signalement accepte"
+        notification_message = f"Votre signalement pour {thing_name} a ete accepte. L'objet est maintenant marque en panne."
+        notification_type = "warning"
+    elif decision == "reject":
+        update_fields["status"] = "Refuse"
+        notification_title = "Signalement refuse"
+        notification_message = f"Votre signalement pour {thing_name} a ete refuse par l'administration."
+        notification_type = "error"
+    else:
+        if thing_id:
+            updated_thing = _update_reported_thing_state(thing_id, "active", "")
+            update_fields.update(_extract_thing_snapshot(updated_thing))
+            update_fields["status"] = "Resolu - remis en service"
+        else:
+            update_fields["status"] = "Resolu - signalement traite"
+        notification_title = "Objet remis en service"
+        notification_message = f"L'objet {thing_name} a ete remis en service apres traitement de votre signalement."
+        notification_type = "success"
+
+    user_history.update_one({"_id": report_object_id}, {"$set": update_fields})
+    updated_report = user_history.find_one({"_id": report_object_id}) or {}
+
+    recipient_user_id = str(updated_report.get("user_id") or "").strip()
+    recipient_email = str(updated_report.get("email") or "").strip()
+    if recipient_user_id or recipient_email:
+        create_notification(
+            target_role="user",
+            recipient_user_id=recipient_user_id,
+            recipient_email=recipient_email,
+            actor_user_id=admin_user_id,
+            actor_email=admin_email,
+            title=notification_title,
+            message=notification_message,
+            notif_type=notification_type,
+            metadata={
+                "action": "problem_report_review",
+                "decision": decision,
+                "report_id": report_id,
+                "thing_id": thing_id,
+            },
+        )
+
+    return {
+        "success": True,
+        "report": _serialize_problem_report(updated_report),
+    }
+
+
 @notifications_router.get("/problem-reports")
 def get_problem_reports(request: Request, limit: int = Query(default=50, ge=1, le=200)):
     """Récupérer les signalements (ses propres pour user, tous pour admin)"""
-    user_id, user_email, role = _require_authenticated_user(request)
+    user_id, _, role = _require_authenticated_user(request)
     user_history = _user_history_collection()
 
     if role == "admin":
@@ -378,19 +596,6 @@ def get_problem_reports(request: Request, limit: int = Query(default=50, ge=1, l
         query = {"action": "SIGNALEMENT_OBJET", "user_id": user_id}
 
     reports = list(user_history.find(query).sort("created_at", -1).limit(limit))
-    
-    serialized = []
-    for report in reports:
-        serialized.append({
-            "id": str(report.get("_id")),
-            "user_id": report.get("user_id", ""),
-            "email": report.get("email", ""),
-            "thing_id": report.get("thing_id", ""),
-            "thing_name": report.get("thing_name", ""),
-            "problem_type": report.get("problem_type", ""),
-            "description": report.get("description", ""),
-            "created_at": report.get("created_at", ""),
-            "date": report.get("date", ""),
-        })
-
+    thing_snapshots = _build_thing_snapshot_map(reports)
+    serialized = [_serialize_problem_report(report, thing_snapshots) for report in reports]
     return {"success": True, "reports": serialized}
