@@ -2075,7 +2075,6 @@ function openObjectDecision(row) {
              <button id="overlayVerifyBtn" type="button" onclick="verifyObjectInOverlay('${safeObjectId}', '${safeName}', '${safeStatusCode}', '${alreadyTaken ? "1" : "0"}', '${takenByAnother ? "1" : "0"}')" class="object-action-btn light" style="border: 1px solid #cbd5e1;"><i class="fas fa-search" style="margin-right: 6px;"></i>Vérifier statut</button>
              <button id="overlayTakeBtn" type="button" disabled class="object-action-btn primary" style="background: #cbd5e1; color: #64748b; cursor: not-allowed;"><i class="fas fa-hand-holding" style="margin-right: 6px;"></i>Vérifier d'abord</button>
              <button type="button" onclick="addToFav('${safeObjectId}', '${safeName}')" class="object-action-btn light" style="border: 1px solid #cbd5e1;"><i class="fas fa-heart" style="margin-right: 6px; ${isFavorite ? 'color: #dc2626;' : ''}"></i>${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</button>
-             <button type="button" onclick="openReportProblemModal('${safeObjectId}', '${safeName}')" class="object-action-btn light" style="border: 1px solid #cbd5e1;"><i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i>Signaler un problème</button>
              <button type="button" onclick="closeOverlay()" class="object-action-btn light">Fermer</button>
            </div>
         </div>
@@ -2233,24 +2232,74 @@ function addToFav(objId, objName) {
   const decodedName = decodeHtmlEntities(objName) || "Objet sans nom";
   const decodedId = decodeHtmlEntities(objId);
   if (!decodedId) return;
+  
   const exists = userFavorites.find(f => f.id === decodedId);
+  
   if (!exists) {
-    userFavorites.push({ id: decodedId, name: decodedName, addedAt: new Date().toISOString() });
-    showAppToast(`${decodedName} ajouté aux favoris`, "success", "Favoris");
+    // Ajouter aux favoris via l'API
+    fetch(`${apiBase}/user/favorites`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        thing_id: decodedId,
+        thing_name: decodedName
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        userFavorites = data.favorites || [];
+        try { window.userFavorites = userFavorites; } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
+        showAppToast(`${decodedName} ajouté aux favoris`, "success", "Favoris");
+        updateFavButton(decodedId);
+        try {
+          if (overlayTitle && String(overlayTitle.textContent || "").trim() === "Mes favoris") {
+            openOverlay("Mes favoris", buildFavoritesOverlayHtml());
+          }
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        showAppToast("Erreur lors de l'ajout", "error", "Erreur");
+      }
+    })
+    .catch(err => {
+      console.error("Erreur add favorite:", err);
+      showAppToast("Erreur réseau", "error", "Connexion");
+    });
   } else {
-    userFavorites = userFavorites.filter(f => f.id !== decodedId);
-    showAppToast(`${decodedName} retiré des favoris`, "success", "Favoris");
+    // Retirer des favoris via l'API
+    fetch(`${apiBase}/user/favorites/${decodedId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders()
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        userFavorites = data.favorites || [];
+        try { window.userFavorites = userFavorites; } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
+        showAppToast(`${decodedName} retiré des favoris`, "success", "Favoris");
+        updateFavButton(decodedId);
+      } else {
+        showAppToast("Erreur lors du retrait", "error", "Erreur");
+      }
+    })
+    .catch(err => {
+      console.error("Erreur remove favorite:", err);
+      showAppToast("Erreur réseau", "error", "Connexion");
+    });
   }
-  normalizeStoredCollections();
-  // Actualiser le modal si c'est affiché
-  if (!infoOverlay.hidden) {
-    const buttonEl = document.querySelector(`button[onclick*="addToFav"]`);
-    if (buttonEl) {
-      const isFav = userFavorites.find(f => f.id === decodedId);
-      buttonEl.innerHTML = isFav 
-        ? '<i class="fas fa-heart" style="margin-right: 6px; color: #dc2626;"></i>Retirer des favoris' 
-        : '<i class="fas fa-heart" style="margin-right: 6px;"></i>Ajouter aux favoris';
-    }
+}
+
+function updateFavButton(objId) {
+  const buttonEl = document.querySelector(`button[onclick*="addToFav"]`);
+  if (buttonEl) {
+    const isFav = userFavorites.find(f => f.id === objId);
+    buttonEl.innerHTML = isFav 
+      ? '<i class="fas fa-heart" style="margin-right: 6px; color: #dc2626;"></i>Retirer des favoris' 
+      : '<i class="fas fa-heart" style="margin-right: 6px;"></i>Ajouter aux favoris';
   }
 }
 
@@ -2282,7 +2331,6 @@ function openReportProblemModal(objId, objName) {
   
   const problemTypes = [
     "Objet endommagé",
-    "Objet sale/contaminé",
     "Position incorrecte",
     "Information manquante",
     "Autre"
@@ -2368,7 +2416,6 @@ function submitReportProblem(objId, objName) {
 }
 
 function buildFavoritesOverlayHtml() {
-  normalizeStoredCollections();
   if (!userFavorites || userFavorites.length === 0) {
     return "<p style=\"padding: 20px; text-align: center; color: #475569;\">Aucun objet dans vos favoris pour le moment.</p>";
   }
@@ -2377,7 +2424,7 @@ function buildFavoritesOverlayHtml() {
     return `
       <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <p style="margin: 0; color: #0f172a; font-weight: 700; font-size: 15px;">${sanitizeText(getSafeEntryName(fav))}</p>
+          <p style="margin: 0; color: #0f172a; font-weight: 700; font-size: 15px;">${sanitizeText(fav.name || fav.id)}</p>
           <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Ajouté le ${sanitizeText(new Date(fav.addedAt).toLocaleDateString('fr-FR'))}</p>
         </div>
         <button type="button" onclick="removeFavorite('${fav.id}')" style="background: #fee2e2; color: #b91c1c; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; white-space: nowrap; margin-left: 10px;">Retirer</button>
@@ -2393,11 +2440,25 @@ function buildFavoritesOverlayHtml() {
 }
 
 function removeFavorite(objId) {
-  userFavorites = userFavorites.filter(f => f.id !== objId);
-  normalizeStoredCollections();
-  // Refresh overlay
-  openOverlay("Mes favoris", buildFavoritesOverlayHtml());
-  showAppToast("Objet retiré des favoris", "success", "Favoris");
+  fetch(`${apiBase}/user/favorites/${objId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders()
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      userFavorites = data.favorites || [];
+      // Refresh overlay
+      openOverlay("Mes favoris", buildFavoritesOverlayHtml());
+      showAppToast("Objet retiré des favoris", "success", "Favoris");
+    } else {
+      showAppToast("Erreur lors du retrait", "error", "Erreur");
+    }
+  })
+  .catch(err => {
+    console.error("Erreur remove favorite:", err);
+    showAppToast("Erreur réseau", "error", "Connexion");
+  });
 }
 
 function buildReportsOverlayHtml() {
@@ -2499,27 +2560,50 @@ if (openProfileOverlay) {
   const logoutFromProfileBtn = document.getElementById("logoutFromProfileBtn");
 
   if (saveBtn && input) {
-    saveBtn.addEventListener("click", function () {
+    saveBtn.addEventListener("click", async function () {
       const value = String(input.value || "").trim();
       if (!value) {
         showAppToast("Veuillez saisir un nom valide.", "error", "Profil");
         return;
       }
-      const uid = getCurrentUserId();
-      if (uid) {
-        localStorage.setItem(scopedKey(PROFILE_NAME_KEY, uid), value);
-      }
-      localStorage.setItem(PROFILE_NAME_KEY, value);
-      applyDisplayName(value);
-      if (window.refreshSidebarProfileCards) {
-        window.refreshSidebarProfileCards({
-          id: uid,
-          email: (userProfileData && userProfileData.email) || localStorage.getItem("userEmail") || "",
-          role: "user",
-          display_name: value
+
+      try {
+        const resp = await fetch(`${apiBase}/user/display-name`, {
+          method: "PATCH",
+          headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+          body: JSON.stringify({ display_name: value })
         });
+
+        if (resp.status === 409) {
+          const payload = await resp.json().catch(() => ({}));
+          showAppToast(payload.detail || "Ce nom d'affichage est déjà pris.", "error", "Profil");
+          return;
+        }
+
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          const uid = getCurrentUserId();
+          if (uid) {
+            localStorage.setItem(scopedKey(PROFILE_NAME_KEY, uid), value);
+          }
+          localStorage.setItem(PROFILE_NAME_KEY, value);
+          applyDisplayName(value);
+          if (window.refreshSidebarProfileCards) {
+            window.refreshSidebarProfileCards({
+              id: uid,
+              email: (userProfileData && userProfileData.email) || localStorage.getItem("userEmail") || "",
+              role: "user",
+              display_name: value
+            });
+          }
+          showAppToast("Nom affiche mis a jour.", "success", "Profil");
+        } else {
+          showAppToast((data && data.detail) || "Erreur mise à jour.", "error", "Profil");
+        }
+      } catch (err) {
+        console.error('Erreur update display name:', err);
+        showAppToast('Erreur réseau', 'error', 'Profil');
       }
-      showAppToast("Nom affiche mis a jour.", "success", "Profil");
     });
   }
 
@@ -2554,6 +2638,7 @@ if (logoutLink) {
 async function initUserDashboard() {
   normalizeStoredCollections();
   await loadUserProfile();
+  await loadUserFavorites();
   if (String((userProfileData && userProfileData.role) || "").toLowerCase() !== "user") {
     return;
   }
@@ -2583,6 +2668,23 @@ async function initUserDashboard() {
   if (!sessionStorage.getItem(sessionLoginKey)) {
     await logUserAction("Connexion", "Session utilisateur ouverte", "Succes");
     sessionStorage.setItem(sessionLoginKey, "1");
+  }
+}
+
+async function loadUserFavorites() {
+  try {
+    const response = await fetch(`${apiBase}/user/favorites`, {
+      method: "GET",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (data.success && Array.isArray(data.favorites)) {
+      userFavorites = data.favorites;
+      try { window.userFavorites = userFavorites; } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
+    }
+  } catch (err) {
+    console.error("Erreur chargement favoris:", err);
   }
 }
 

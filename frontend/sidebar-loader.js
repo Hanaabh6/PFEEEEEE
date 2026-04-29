@@ -144,6 +144,14 @@
     }
 
     function getFavorites() {
+      try {
+        if (window && Array.isArray(window.userFavorites)) {
+          return window.userFavorites.map(function (it, idx) { return normalizeFavorite(it, idx); });
+        }
+      } catch (e) {
+        // ignore
+      }
+
       var source = parseJson("userFavorites");
       var list = [];
       for (var i = 0; i < source.length; i += 1) {
@@ -153,6 +161,62 @@
     }
 
     function removeFavoriteById(id) {
+      // If the app exposes server-backed userFavorites, call backend API to remove
+      var token = String(localStorage.getItem("userToken") || "").trim();
+      var apiBase = getApiBase();
+      if (token && apiBase) {
+        return fetch(apiBase + "/user/favorites/" + encodeURIComponent(String(id)), {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        }).then(function (resp) {
+          return resp.json().catch(function () { return {}; });
+        }).then(function (data) {
+          var next = [];
+          if (data && Array.isArray(data.favorites)) {
+            next = data.favorites;
+          } else if (window && Array.isArray(window.userFavorites)) {
+            next = window.userFavorites.filter(function (it) { return String(it.id) !== String(id); });
+          } else {
+            // fallback to localStorage
+            var source = parseJson("userFavorites");
+            for (var i = 0; i < source.length; i += 1) {
+              var item = source[i] || {};
+              var itemId = String(item.id || item.object_id || item.code || "");
+              if (itemId !== String(id)) next.push(item);
+            }
+          }
+          try {
+            // Update window.userFavorites for shared state
+            window.userFavorites = next;
+          } catch (e) {}
+          try {
+            // update localStorage for legacy pages
+            localStorage.setItem("userFavorites", JSON.stringify(next));
+          } catch (e) {
+            // ignore
+          }
+          try {
+            window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } }));
+          } catch (e) {
+            // ignore
+          }
+          return next;
+        }).catch(function (err) {
+          // on error, fallback to local removal
+          var source = parseJson("userFavorites");
+          var next = [];
+          for (var i = 0; i < source.length; i += 1) {
+            var item = source[i] || {};
+            var itemId = String(item.id || item.object_id || item.code || "");
+            if (itemId !== String(id)) next.push(item);
+          }
+          try { localStorage.setItem("userFavorites", JSON.stringify(next)); } catch (e) {}
+          try { window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } })); } catch (e) {}
+          return next;
+        });
+      }
+
+      // legacy local removal
       var source = parseJson("userFavorites");
       var next = [];
       for (var i = 0; i < source.length; i += 1) {
@@ -168,6 +232,7 @@
       } catch (e) {
         // ignore
       }
+      return Promise.resolve(next);
     }
 
     function ensureStyle() {
@@ -299,8 +364,9 @@
         }
 
         var removeId = String(removeBtn.getAttribute("data-fav-remove") || "");
-        removeFavoriteById(removeId);
-        renderFavoritesOverlay();
+        removeFavoriteById(removeId).then(function () {
+          renderFavoritesOverlay();
+        });
         return;
       }
 
@@ -744,7 +810,6 @@
             '<label class="ib-report-label" for="ibSidebarReportProblemType">Type de problème</label>' +
             '<select id="ibSidebarReportProblemType" class="ib-report-select">' +
               '<option value="Objet endommagé">Objet endommagé</option>' +
-              '<option value="Objet sale/contaminé">Objet sale/contaminé</option>' +
               '<option value="Position incorrecte">Position incorrecte</option>' +
               '<option value="Information manquante">Information manquante</option>' +
               '<option value="Autre">Autre</option>' +
@@ -983,6 +1048,36 @@
   if (role === "user") {
     initUnifiedUserFavoritesOverlay(node);
     initUnifiedUserReportsOverlay(node);
+  }
+
+  // Load user favorites from API on all pages (needed before overlay init)
+  if (role === "user") {
+    (function initSharedFavorites() {
+      function getApiBase() {
+        if (!window.APP_CONFIG || !window.APP_CONFIG.API_BASE) return "";
+        return String(window.APP_CONFIG.API_BASE).replace(/\/+$/, "");
+      }
+      function getAuthHeaders() {
+        var token = String(localStorage.getItem("userToken") || "").trim();
+        var headers = { "Content-Type": "application/json" };
+        if (token) headers.Authorization = "Bearer " + token;
+        return headers;
+      }
+      var apiBase = getApiBase();
+      var token = String(localStorage.getItem("userToken") || "").trim();
+      if (apiBase && token) {
+        fetch(apiBase + "/user/favorites", {
+          method: "GET",
+          headers: getAuthHeaders()
+        }).then(function (resp) { return resp.json(); }).then(function (data) {
+          if (data.success && Array.isArray(data.favorites)) {
+            window.userFavorites = data.favorites;
+            console.log("[sidebar-loader] Loaded " + data.favorites.length + " favorites");
+            try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: window.userFavorites } })); } catch (e) {}
+          }
+        }).catch(function (err) { console.error("[sidebar-loader] Error loading favorites:", err); });
+      }
+    })();
   }
 
   var currentScript = document.currentScript;

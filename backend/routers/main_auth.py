@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 import httpx
 
-from ..base import user_history_collection, notifications_collection
+from ..base import user_history_collection, notifications_collection, things_collection
 from ..config import resolve_public_base_url
 
 from ..supabase_client import reset_password_email, signup_user, supabase, delete_user_admin
@@ -37,6 +37,15 @@ class UserHistoryRequest(BaseModel):
 
 class UpdateUserRoleRequest(BaseModel):
     role: str = Field(..., min_length=4, max_length=10)
+
+
+class UpdateDisplayNameRequest(BaseModel):
+    display_name: str = Field(..., min_length=1, max_length=160)
+
+
+class AddFavoriteRequest(BaseModel):
+    thing_id: str = Field(..., min_length=1, max_length=120)
+    thing_name: str = Field(..., min_length=1, max_length=160)
 
 
 def extract_bearer_token(request: Request) -> str | None:
@@ -463,3 +472,185 @@ def delete_admin_user(target_user_id: str, request: Request):
     if auth_error:
         result["auth_error"] = str(auth_error)
     return result
+
+
+@auth_router.patch("/user/display-name")
+def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(...)):
+    """Mettre à jour le nom d'affichage de l'utilisateur dans Supabase (UNIQUE)"""
+    user = _get_authenticated_user(request)
+    user_id = str(user.id)
+    display_name = str(data.display_name or "").strip()
+    
+    print(f"[PATCH /user/display-name] user_id={user_id}, display_name='{display_name}'")
+    
+    if not display_name or len(display_name) > 160:
+        raise HTTPException(status_code=400, detail="Nom d'affichage invalide")
+    
+    try:
+        # Vérifier que le nom n'existe pas déjà pour un autre utilisateur
+        existing = supabase.table("utilisateur").select("id").eq("display_name", display_name).neq("id", user_id).maybe_single().execute()
+        if existing.data:
+            print(f"[PATCH /user/display-name] Name already exists")
+            raise HTTPException(status_code=409, detail="Ce nom d'affichage est déjà pris. Veuillez en choisir un autre.")
+        
+        # Mettre à jour
+        print(f"[PATCH /user/display-name] Calling Supabase update...")
+        result = supabase.table("utilisateur").update({"display_name": display_name}).eq("id", user_id).execute()
+        print(f"[PATCH /user/display-name] Supabase result: {result}")
+        
+        # Certains clients Supabase retournent une erreur ou status en cas de violation de contrainte
+        try:
+            err = getattr(result, 'error', None) or (result.get('error') if isinstance(result, dict) else None)
+        except Exception:
+            err = None
+
+        if err:
+            msg = str(err)
+            if 'duplicate' in msg.lower() or 'unique' in msg.lower() or 'violat' in msg.lower():
+                raise HTTPException(status_code=409, detail="Ce nom d'affichage est déjà pris. Veuillez en choisir un autre.")
+            print(f"Supabase update returned error: {err}")
+
+        print(f"[PATCH /user/display-name] SUCCESS!")
+        return {"success": True, "display_name": display_name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erreur update display_name: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Erreur mise à jour profil")
+
+
+@auth_router.get("/user/favorites")
+def get_user_favorites(request: Request):
+    """Charger les favoris de l'utilisateur depuis Supabase"""
+    user = _get_authenticated_user(request)
+    user_id = str(user.id)
+    
+    try:
+        query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
+        favorites = query.data.get("favorites", []) if query.data else []
+        
+        if not isinstance(favorites, list):
+            favorites = []
+        
+        return {"success": True, "favorites": favorites}
+    except Exception as e:
+        print(f"Erreur get favorites: {e}")
+        raise HTTPException(status_code=500, detail="Erreur chargement favoris")
+
+
+@auth_router.post("/user/favorites")
+def add_favorite(request: Request, data: AddFavoriteRequest = Body(...)):
+    """Ajouter un favori pour l'utilisateur"""
+    user = _get_authenticated_user(request)
+    user_id = str(user.id)
+    thing_id = str(data.thing_id or "").strip()
+    thing_name = str(data.thing_name or "").strip()
+    
+    if not thing_id or not thing_name:
+        raise HTTPException(status_code=400, detail="Données manquantes")
+    
+    try:
+        # Charger les favoris existants
+        query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
+        favorites = query.data.get("favorites", []) if query.data else []
+        
+        if not isinstance(favorites, list):
+            favorites = []
+        
+        # Vérifier si déjà en favori
+        if any(fav.get("id") == thing_id for fav in favorites if isinstance(fav, dict)):
+            return {"success": True, "message": "Déjà en favori", "favorites": favorites}
+        
+        # Ajouter le nouveau favori
+        new_favorite = {
+            "id": thing_id,
+            "name": thing_name,
+            "addedAt": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Enrichir avec des métadonnées si l'objet existe dans la collection principale
+        try:
+            thing = things_collection.find_one({"id": thing_id})
+            if thing and isinstance(thing, dict):
+                # Type
+                fav_type = str(thing.get("type") or thing.get("@type") or thing.get("category") or "").strip()
+                if fav_type:
+                    new_favorite["type"] = fav_type
+
+                # Localisation (room / name)
+                loc = thing.get("location") if isinstance(thing.get("location"), dict) else {}
+                room = str(loc.get("room") or loc.get("name") or "").strip()
+                if room:
+                    new_favorite["location"] = room
+        except Exception as e:
+            print(f"Erreur enrichment favori depuis things_collection: {e}")
+        favorites.append(new_favorite)
+        
+        # Sauvegarder
+        supabase.table("utilisateur").update({"favorites": favorites}).eq("id", user_id).execute()
+        
+        return {"success": True, "message": "Favori ajouté", "favorites": favorites}
+    except Exception as e:
+        print(f"Erreur add favorite: {e}")
+        raise HTTPException(status_code=500, detail="Erreur ajout favori")
+
+
+# Backwards-compatible alias routes in case of mounting/trailing-slash issues
+@auth_router.post("/user/favorites/")
+def add_favorite_trailing(request: Request, data: AddFavoriteRequest = Body(...)):
+    try:
+        print("Alias route /user/favorites/ invoked")
+    except Exception:
+        pass
+    return add_favorite(request, data)
+
+
+@auth_router.post("/user/favorites/add")
+def add_favorite_addpath(request: Request, data: AddFavoriteRequest = Body(...)):
+    try:
+        print("Alias route /user/favorites/add invoked")
+    except Exception:
+        pass
+    return add_favorite(request, data)
+
+
+@auth_router.delete("/user/favorites/{thing_id}")
+def remove_favorite(thing_id: str, request: Request):
+    """Supprimer un favori pour l'utilisateur"""
+    user = _get_authenticated_user(request)
+    user_id = str(user.id)
+    thing_id_safe = str(thing_id or "").strip()
+    
+    print(f"[DELETE /user/favorites/{thing_id}] user_id={user_id}, thing_id_safe='{thing_id_safe}'")
+    
+    if not thing_id_safe:
+        raise HTTPException(status_code=400, detail="thing_id manquant")
+    
+    try:
+        # Charger les favoris existants
+        print(f"[DELETE /user/favorites/{thing_id}] Loading favorites...")
+        query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
+        print(f"[DELETE /user/favorites/{thing_id}] Query result: {query.data}")
+        favorites = query.data.get("favorites", []) if query.data else []
+        
+        if not isinstance(favorites, list):
+            favorites = []
+        
+        print(f"[DELETE /user/favorites/{thing_id}] Current favorites count: {len(favorites)}")
+        
+        # Filtrer pour supprimer
+        updated_favorites = [fav for fav in favorites if not (isinstance(fav, dict) and fav.get("id") == thing_id_safe)]
+        print(f"[DELETE /user/favorites/{thing_id}] After filter count: {len(updated_favorites)}")
+        
+        # Sauvegarder
+        print(f"[DELETE /user/favorites/{thing_id}] Saving to Supabase...")
+        result = supabase.table("utilisateur").update({"favorites": updated_favorites}).eq("id", user_id).execute()
+        print(f"[DELETE /user/favorites/{thing_id}] Supabase result: {result}")
+        
+        print(f"[DELETE /user/favorites/{thing_id}] SUCCESS!")
+        return {"success": True, "message": "Favori supprimé", "favorites": updated_favorites}
+    except Exception as e:
+        print(f"Erreur delete favorite: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Erreur suppression favori")
