@@ -715,7 +715,7 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   </script></head>
 <body>
 <div class="container">
-  <script src="sidebar-loader.js"></script>
+  <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
   <div class="main">
     <div class="user-top-area">
@@ -836,13 +836,28 @@ let userProfileData = null;
 let roomCoordsCache = {};
 let layoutFloorsCache = [];
 const objectDetailsCache = new Map();
-let userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+let userFavorites = [];
+try {
+  if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.getFavoritesRaw === "function") {
+    userFavorites = window.__ibFavoritesStore.getFavoritesRaw();
+  } else {
+    userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+  }
+} catch (error) {
+  userFavorites = [];
+}
 let userReports = JSON.parse(localStorage.getItem("userReports") || "[]");
 let userThingsAutoRefreshTimer = null;
 let userObjectTypeFilters = [];
 let activeQuickFilterQuery = "";
 
 if (!userToken) window.location.href = "login.html";
+
+window.addEventListener("app:favorites-changed", function (event) {
+  if (event && event.detail && Array.isArray(event.detail.favorites)) {
+    userFavorites = event.detail.favorites;
+  }
+});
 
 function tr(key, fallback) {
   const locale = (localStorage.getItem("lang") || "fr").toLowerCase();
@@ -1554,7 +1569,11 @@ function normalizeStoredCollections() {
     source: String((item && item.source) || "").trim()
   })).filter((item) => item.id);
 
-  localStorage.setItem("userFavorites", JSON.stringify(userFavorites));
+  if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.setFavorites === "function") {
+    window.__ibFavoritesStore.setFavorites(userFavorites);
+  } else {
+    localStorage.setItem("userFavorites", JSON.stringify(userFavorites));
+  }
   localStorage.setItem("userReports", JSON.stringify(userReports));
 }
 
@@ -2253,6 +2272,9 @@ function addToFav(objId, objName) {
         try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
         showAppToast(`${decodedName} ajouté aux favoris`, "success", "Favoris");
         updateFavButton(decodedId);
+        if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.setFavorites === "function") {
+          window.__ibFavoritesStore.setFavorites(userFavorites);
+        }
         try {
           if (overlayTitle && String(overlayTitle.textContent || "").trim() === "Mes favoris") {
             openOverlay("Mes favoris", buildFavoritesOverlayHtml());
@@ -2270,7 +2292,7 @@ function addToFav(objId, objName) {
     });
   } else {
     // Retirer des favoris via l'API
-    fetch(`${apiBase}/user/favorites/${decodedId}`, {
+    fetch(`${apiBase}/user/favorites/${encodeURIComponent(decodedId)}`, {
       method: "DELETE",
       headers: getAuthHeaders()
     })
@@ -2282,6 +2304,9 @@ function addToFav(objId, objName) {
         try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
         showAppToast(`${decodedName} retiré des favoris`, "success", "Favoris");
         updateFavButton(decodedId);
+        if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.setFavorites === "function") {
+          window.__ibFavoritesStore.setFavorites(userFavorites);
+        }
       } else {
         showAppToast("Erreur lors du retrait", "error", "Erreur");
       }
@@ -2421,13 +2446,14 @@ function buildFavoritesOverlayHtml() {
   }
 
   const items = userFavorites.map((fav) => {
+    const favoriteId = JSON.stringify(String((fav && fav.id) || ""));
     return `
       <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <p style="margin: 0; color: #0f172a; font-weight: 700; font-size: 15px;">${sanitizeText(fav.name || fav.id)}</p>
           <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Ajouté le ${sanitizeText(new Date(fav.addedAt).toLocaleDateString('fr-FR'))}</p>
         </div>
-        <button type="button" onclick="removeFavorite('${fav.id}')" style="background: #fee2e2; color: #b91c1c; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; white-space: nowrap; margin-left: 10px;">Retirer</button>
+        <button type="button" onclick='removeFavorite(${favoriteId})' style="background: #fee2e2; color: #b91c1c; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; white-space: nowrap; margin-left: 10px;">Retirer</button>
       </div>
     `;
   }).join("");
@@ -2440,7 +2466,19 @@ function buildFavoritesOverlayHtml() {
 }
 
 function removeFavorite(objId) {
-  fetch(`${apiBase}/user/favorites/${objId}`, {
+  if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.removeFavoriteById === "function") {
+    window.__ibFavoritesStore.removeFavoriteById(objId).then(function (next) {
+      userFavorites = Array.isArray(next) ? next : [];
+      openOverlay("Mes favoris", buildFavoritesOverlayHtml());
+      showAppToast("Objet retirÃ© des favoris", "success", "Favoris");
+    }).catch(function (err) {
+      console.error("Erreur remove favorite:", err);
+      showAppToast("Erreur rÃ©seau", "error", "Connexion");
+    });
+    return;
+  }
+
+  fetch(`${apiBase}/user/favorites/${encodeURIComponent(objId)}`, {
     method: "DELETE",
     headers: getAuthHeaders()
   })
@@ -2448,6 +2486,9 @@ function removeFavorite(objId) {
   .then(data => {
     if (data.success) {
       userFavorites = data.favorites || [];
+      if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.setFavorites === "function") {
+        window.__ibFavoritesStore.setFavorites(userFavorites);
+      }
       // Refresh overlay
       openOverlay("Mes favoris", buildFavoritesOverlayHtml());
       showAppToast("Objet retiré des favoris", "success", "Favoris");
@@ -2679,9 +2720,13 @@ async function loadUserFavorites() {
     });
     const data = await response.json();
     if (data.success && Array.isArray(data.favorites)) {
-      userFavorites = data.favorites;
-      try { window.userFavorites = userFavorites; } catch (e) {}
-      try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
+      if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.setFavorites === "function") {
+        window.__ibFavoritesStore.setFavorites(data.favorites);
+      } else {
+        userFavorites = data.favorites;
+        try { window.userFavorites = userFavorites; } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: userFavorites } })); } catch (e) {}
+      }
     }
   } catch (err) {
     console.error("Erreur chargement favoris:", err);

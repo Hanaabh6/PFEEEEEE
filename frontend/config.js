@@ -262,9 +262,9 @@ window.APP_CONFIG = window.APP_CONFIG || {};
     var role = String(profile.role || localStorage.getItem("userRole") || "user").toLowerCase();
     var userId = String(profile.id || localStorage.getItem("userId") || "").trim();
     var scopedName = userId ? String(localStorage.getItem(scopedKey("userDisplayName", userId)) || "").trim() : "";
-    var displayName = scopedName
+    var displayName = String(profile.display_name || "").trim()
+      || scopedName
       || String(localStorage.getItem("userDisplayName") || "").trim()
-      || String(profile.display_name || "").trim()
       || displayNameFromEmail(email, role === "admin" ? sidebarText("admin") : sidebarText("user"));
 
     if (email) localStorage.setItem("userEmail", email);

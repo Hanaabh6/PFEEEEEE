@@ -144,10 +144,20 @@
 
             if (response.ok) {
                 const token = result.access_token || (result.session && result.session.access_token);
+              const nextUserId = String(result.user_id || "").trim();
+              const previousUserId = String(localStorage.getItem('userId') || "").trim();
               const role = result.role || "user";
                 localStorage.setItem('userToken', token);
               localStorage.setItem('userRole', role);
               localStorage.setItem('userEmail', result.email || email);
+              if (nextUserId) {
+                localStorage.setItem('userId', nextUserId);
+                if (previousUserId !== nextUserId) {
+                  const scopedFavorites = localStorage.getItem(`userFavorites:${nextUserId}`);
+                  localStorage.setItem('userFavoritesOwner', nextUserId);
+                  localStorage.setItem('userFavorites', scopedFavorites || '[]');
+                }
+              }
               if (role === "admin") {
                 window.location.href = "index.html";
               } else {

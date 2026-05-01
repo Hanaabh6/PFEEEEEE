@@ -251,7 +251,7 @@
   </style>
 </head>
 <body>
-  <script src="sidebar-loader.js"></script>
+  <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
   <main class="main-wrap">
     <section id="profileSection" class="glass p-6 mb-5">
@@ -297,27 +297,6 @@
       <p id="bioText" class="text-slate-600 m-0">Aucune bio enregistree.</p>
     </section>
 
-    <section id="historySection" class="glass p-5">
-      <div class="flex items-center justify-between gap-3 mb-3">
-        <h2 class="text-xl font-black text-slate-800 m-0">Historique personnel</h2>
-        <button id="refreshHistoryBtn" class="btn btn-outline">Rafraichir</button>
-      </div>
-
-      <div class="table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Action</th>
-              <th>Detail</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody"></tbody>
-        </table>
-      </div>
-      <p id="historyEmpty" class="text-slate-500 mt-2" hidden>Aucun historique pour cet utilisateur.</p>
-    </section>
   </main>
 
   <div class="overlay" id="editOverlay" hidden>
@@ -411,8 +390,6 @@
     const roomValue = document.getElementById("roomValue");
     const memberSinceValue = document.getElementById("memberSinceValue");
     const bioText = document.getElementById("bioText");
-    const historyBody = document.getElementById("historyBody");
-    const historyEmpty = document.getElementById("historyEmpty");
 
     const editOverlay = document.getElementById("editOverlay");
     const editNameInput = document.getElementById("editNameInput");
@@ -483,11 +460,11 @@
 
     function getDisplayName(profile) {
       const uid = profile && profile.id ? String(profile.id) : "anonymous";
-      const scoped = String(localStorage.getItem(scopedKey("userDisplayName", uid)) || "").trim();
-      if (scoped) return scoped;
-
       const apiName = String((profile && profile.display_name) || "").trim();
       if (apiName) return apiName;
+
+      const scoped = String(localStorage.getItem(scopedKey("userDisplayName", uid)) || "").trim();
+      if (scoped) return scoped;
 
       const legacy = String(localStorage.getItem("userDisplayName") || "").trim();
       if (legacy) return legacy;
@@ -584,50 +561,12 @@
       emailValue.textContent = email || "-";
       rolePill.textContent = role;
       roomValue.textContent = localStorage.getItem("user_room") || "Non definie";
+      memberSinceValue.textContent = formatDate(currentProfile.created_at || currentProfile.createdAt || "");
       bioText.textContent = bio || "Aucune bio enregistree.";
       signOutEmail.textContent = email || "-";
 
       editNameInput.value = displayName;
       editBioInput.value = bio;
-    }
-
-    async function loadHistory() {
-      const response = await fetch(`${apiBase}/user/history`, { method: "GET", headers: authHeaders() });
-      const data = await response.json().catch(function () { return []; });
-      const rawList = Array.isArray(data) ? data : [];
-
-      // Safety filter: only keep rows that belong to the authenticated user.
-      const currentUserId = String((currentProfile && currentProfile.id) || localStorage.getItem("userId") || "").trim();
-      const currentEmail = String((currentProfile && currentProfile.email) || localStorage.getItem("userEmail") || "").trim().toLowerCase();
-      const list = rawList.filter(function (entry) {
-        const entryUserId = String(entry && entry.user_id ? entry.user_id : "").trim();
-        const entryEmail = String(entry && entry.email ? entry.email : "").trim().toLowerCase();
-        if (currentUserId && entryUserId) return entryUserId === currentUserId;
-        if (currentEmail && entryEmail) return entryEmail === currentEmail;
-        return true;
-      });
-
-      historyBody.innerHTML = list.map(function (entry) {
-        const status = String(entry.status || "-");
-        const statusClass = status.toLowerCase().includes("succes") ? "status-ok" : "status-ko";
-        return `
-          <tr>
-            <td>${entry.date || formatDateTime(entry.created_at)}</td>
-            <td style="font-weight:700;color:#0f172a;">${entry.action || "-"}</td>
-            <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;">${entry.detail || "-"}</td>
-            <td><span class="${statusClass}">${status}</span></td>
-          </tr>
-        `;
-      }).join("");
-
-      historyEmpty.hidden = list.length > 0;
-
-      if (list.length) {
-        const oldest = list[list.length - 1];
-        memberSinceValue.textContent = formatDate(oldest.created_at || oldest.date);
-      } else {
-        memberSinceValue.textContent = formatDate(new Date().toISOString());
-      }
     }
 
     function openEdit() { editOverlay.hidden = false; }
@@ -647,6 +586,25 @@
         return;
       }
 
+      try {
+        const response = await fetch(`${apiBase}/user/display-name`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ display_name: name })
+        });
+        const payload = await response.json().catch(function () { return {}; });
+        if (!response.ok || !payload.success) {
+          throw new Error(String(payload.detail || payload.message || "Impossible de mettre a jour le nom."));
+        }
+      } catch (error) {
+        console.error("Erreur update display name user:", error);
+        alert(String(error && error.message ? error.message : "Impossible de mettre a jour le nom."));
+        return;
+      }
+
+      if (currentProfile && typeof currentProfile === "object") {
+        currentProfile.display_name = name;
+      }
       setDisplayName(currentProfile, name);
       setBio(currentProfile, bio);
       if (window.refreshSidebarProfileCards) {
@@ -660,7 +618,6 @@
       await logAction("Profil", "Edition du profil utilisateur", "Succes");
       closeEdit();
       await loadProfile();
-      await loadHistory();
     });
 
     document.getElementById("openSignOutBtn").addEventListener("click", openSignOut);
@@ -677,7 +634,6 @@
       window.location.href = "login.html";
     });
 
-    document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistory);
     if (langSelect) {
       langSelect.addEventListener("change", function () { applyLang(langSelect.value); });
     }
@@ -686,7 +642,6 @@
       try {
         applyLang(localStorage.getItem("lang") || "fr");
         await loadProfile();
-        await loadHistory();
       } catch (error) {
         console.error(error);
         updateDebugPanel([ 'Init error: ' + (error && error.message ? error.message : String(error)) ]);
@@ -797,6 +752,12 @@
           const removeFav = event.target.closest("[data-remove-fav]");
           if (removeFav) {
             const id = String(removeFav.getAttribute("data-remove-fav") || "");
+            if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.removeFavoriteById === "function") {
+              Promise.resolve(window.__ibFavoritesStore.removeFavoriteById(id)).then(function () {
+                openFavorites();
+              });
+              return;
+            }
             const next = readJson("userFavorites").filter(function (f) {
               return String((f && f.id) || "") !== id;
             });
@@ -829,7 +790,9 @@
       }
 
       function openFavorites() {
-        const favorites = readJson("userFavorites");
+        const favorites = window.__ibFavoritesStore && typeof window.__ibFavoritesStore.getFavoritesRaw === "function"
+          ? window.__ibFavoritesStore.getFavoritesRaw()
+          : readJson("userFavorites");
         if (!favorites.length) {
           openOverlay(tr("favorites_title", "Mes favoris"), '<p class="nav-collections-empty">' + tr("Aucun objet dans vos favoris pour le moment.", "Aucun objet dans vos favoris pour le moment.") + '</p>');
           return;

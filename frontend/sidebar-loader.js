@@ -78,6 +78,150 @@
     link.classList.add("bg-emerald-700", "text-white", "shadow-lg", "nav-active", "active");
   }
 
+  function parseStoredArray(key) {
+    try {
+      var raw = localStorage.getItem(key);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function hasStoredValue(key) {
+    try {
+      return localStorage.getItem(key) !== null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function currentFavoritesUserId() {
+    return String(localStorage.getItem("userId") || "").trim();
+  }
+
+  function scopedFavoritesKey(userId) {
+    return "userFavorites:" + String(userId || "anonymous");
+  }
+
+  function favoriteIdFromItem(item) {
+    if (!item || typeof item !== "object") {
+      return "";
+    }
+    return String(item.id || item.object_id || item.code || "").trim();
+  }
+
+  function normalizeFavoriteItem(item) {
+    var id = favoriteIdFromItem(item);
+    if (!id) {
+      return null;
+    }
+
+    var addedAt = String((item && (item.addedAt || item.added_at || item.date)) || "").trim();
+    if (!addedAt) {
+      addedAt = new Date().toISOString();
+    }
+
+    return {
+      id: id,
+      name: String((item && (item.name || item.nom || item.title)) || id).trim() || id,
+      type: String((item && (item.type || item.category || item.categorie)) || "").trim(),
+      location: String((item && (item.location || item.localisation || item.room || item.salle)) || "").trim(),
+      status: String((item && (item.status || item.etat)) || "").trim(),
+      details: String((item && (item.description || item.detail || item.details || item.note)) || "").trim(),
+      addedAt: addedAt
+    };
+  }
+
+  function normalizeFavoritesList(list) {
+    var source = Array.isArray(list) ? list : [];
+    var next = [];
+    var seen = {};
+
+    for (var i = 0; i < source.length; i += 1) {
+      var item = normalizeFavoriteItem(source[i]);
+      if (!item || seen[item.id]) {
+        continue;
+      }
+      seen[item.id] = true;
+      next.push(item);
+    }
+
+    return next;
+  }
+
+  function syncFavoritesCache(list) {
+    var next = normalizeFavoritesList(list);
+    var userId = currentFavoritesUserId();
+
+    try {
+      window.userFavorites = next;
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      localStorage.setItem(scopedFavoritesKey(userId), JSON.stringify(next));
+      localStorage.setItem("userFavorites", JSON.stringify(next));
+      localStorage.setItem("userFavoritesOwner", userId || "anonymous");
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } }));
+    } catch (e) {
+      // ignore
+    }
+
+    return next;
+  }
+
+  function readFavoritesCache() {
+    var userId = currentFavoritesUserId();
+    var scopedKey = scopedFavoritesKey(userId);
+
+    if (hasStoredValue(scopedKey)) {
+      return normalizeFavoritesList(parseStoredArray(scopedKey));
+    }
+
+    var ownerId = String(localStorage.getItem("userFavoritesOwner") || "").trim();
+    if (!userId || ownerId === userId) {
+      return normalizeFavoritesList(parseStoredArray("userFavorites"));
+    }
+
+    return [];
+  }
+
+  function resetLegacyFavoritesCacheForCurrentUser() {
+    var userId = currentFavoritesUserId();
+    if (!userId) {
+      return;
+    }
+
+    var ownerId = String(localStorage.getItem("userFavoritesOwner") || "").trim();
+    var scopedKey = scopedFavoritesKey(userId);
+
+    try {
+      if (!ownerId) {
+        if (hasStoredValue(scopedKey)) {
+          localStorage.setItem("userFavorites", JSON.stringify(parseStoredArray(scopedKey)));
+        } else {
+          localStorage.setItem("userFavorites", JSON.stringify([]));
+        }
+        localStorage.setItem("userFavoritesOwner", userId);
+        return;
+      }
+
+      if (ownerId !== userId) {
+        localStorage.setItem("userFavorites", JSON.stringify([]));
+        localStorage.setItem("userFavoritesOwner", userId);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   function bindOverlayActiveBehavior(root) {
     var overlayIds = ["openHistoryOverlay", "openAdminReportsOverlay", "openFavoritesOverlay", "openReportsOverlay"];
     for (var i = 0; i < overlayIds.length; i += 1) {
@@ -96,6 +240,15 @@
       return;
     }
     window.__ibUnifiedFavoritesOverlayReady = true;
+    resetLegacyFavoritesCacheForCurrentUser();
+
+    try {
+      if (!Array.isArray(window.userFavorites) || !window.userFavorites.length) {
+        window.userFavorites = readFavoritesCache();
+      }
+    } catch (e) {
+      // ignore
+    }
 
     function esc(value) {
       return String(value == null ? "" : value)
@@ -116,14 +269,47 @@
       }
     }
 
-    function normalizeFavorite(item, index) {
-      var id = String((item && (item.id || item.object_id || item.code)) || ("fav-" + index));
-      var name = String((item && (item.name || item.nom || item.title)) || "Objet sans nom");
-      var type = String((item && (item.type || item.category || item.categorie)) || "").trim() || "Non specifie";
-      var location = String((item && (item.location || item.localisation || item.room || item.salle)) || "").trim() || "Non specifie";
-      var status = String((item && (item.status || item.etat)) || "").trim() || "Non specifie";
-      var details = String((item && (item.description || item.detail || item.details || item.note)) || "Aucun détail disponible.");
-      var addedAt = item && item.addedAt ? item.addedAt : null;
+    function getApiBase() {
+      if (!window.APP_CONFIG || !window.APP_CONFIG.API_BASE) {
+        return "";
+      }
+      return String(window.APP_CONFIG.API_BASE).replace(/\/+$/, "");
+    }
+
+    function getAuthHeaders() {
+      var token = String(localStorage.getItem("userToken") || "").trim();
+      var headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = "Bearer " + token;
+      }
+      return headers;
+    }
+
+    function notifyFavorites(message, type) {
+      var safeMessage = String(message || "").trim() || "Impossible de retirer le favori.";
+      if (typeof window.showAppToast === "function") {
+        window.showAppToast(safeMessage, type || "error", "Favoris");
+        return;
+      }
+      if (typeof window.showToast === "function") {
+        window.showToast(safeMessage, type || "error");
+        return;
+      }
+      window.alert(safeMessage);
+    }
+
+    function normalizeFavorite(item) {
+      var base = normalizeFavoriteItem(item);
+      if (!base) {
+        return null;
+      }
+      var id = base.id;
+      var name = base.name;
+      var type = base.type || "Non specifie";
+      var location = base.location || "Non specifie";
+      var status = base.status || "Non specifie";
+      var details = base.details || "Aucun detail disponible.";
+      var addedAt = base.addedAt || null;
       var addedLabel = "-";
       if (addedAt) {
         var d = new Date(addedAt);
@@ -144,96 +330,87 @@
     }
 
     function getFavorites() {
+      var list = [];
       try {
         if (window && Array.isArray(window.userFavorites)) {
-          return window.userFavorites.map(function (it, idx) { return normalizeFavorite(it, idx); });
+          for (var i = 0; i < window.userFavorites.length; i += 1) {
+            var normalizedWindowFavorite = normalizeFavorite(window.userFavorites[i]);
+            if (normalizedWindowFavorite) {
+              list.push(normalizedWindowFavorite);
+            }
+          }
+          return list;
         }
       } catch (e) {
         // ignore
       }
 
-      var source = parseJson("userFavorites");
-      var list = [];
-      for (var i = 0; i < source.length; i += 1) {
-        list.push(normalizeFavorite(source[i], i));
+      var source = readFavoritesCache();
+      for (var j = 0; j < source.length; j += 1) {
+        var normalizedSourceFavorite = normalizeFavorite(source[j]);
+        if (normalizedSourceFavorite) {
+          list.push(normalizedSourceFavorite);
+        }
       }
       return list;
     }
 
     function removeFavoriteById(id) {
       // If the app exposes server-backed userFavorites, call backend API to remove
+      var safeId = String(id || "").trim();
+      if (!safeId) {
+        return Promise.reject(new Error("ID de favori manquant"));
+      }
       var token = String(localStorage.getItem("userToken") || "").trim();
       var apiBase = getApiBase();
       if (token && apiBase) {
-        return fetch(apiBase + "/user/favorites/" + encodeURIComponent(String(id)), {
+        return fetch(apiBase + "/user/favorites/" + encodeURIComponent(safeId), {
           method: "DELETE",
           headers: getAuthHeaders()
         }).then(function (resp) {
-          return resp.json().catch(function () { return {}; });
+          return resp.json().catch(function () { return {}; }).then(function (data) {
+            if (!resp.ok || (data && data.success === false)) {
+              var errorMessage = String((data && (data.detail || data.message)) || "Impossible de retirer le favori.");
+              throw new Error(errorMessage);
+            }
+            return data;
+          });
         }).then(function (data) {
           var next = [];
           if (data && Array.isArray(data.favorites)) {
             next = data.favorites;
           } else if (window && Array.isArray(window.userFavorites)) {
-            next = window.userFavorites.filter(function (it) { return String(it.id) !== String(id); });
+            next = window.userFavorites.filter(function (it) { return favoriteIdFromItem(it) !== safeId; });
           } else {
-            // fallback to localStorage
-            var source = parseJson("userFavorites");
+            var source = readFavoritesCache();
             for (var i = 0; i < source.length; i += 1) {
               var item = source[i] || {};
-              var itemId = String(item.id || item.object_id || item.code || "");
-              if (itemId !== String(id)) next.push(item);
+              var itemId = favoriteIdFromItem(item);
+              if (itemId !== safeId) next.push(item);
             }
           }
-          try {
-            // Update window.userFavorites for shared state
-            window.userFavorites = next;
-          } catch (e) {}
-          try {
-            // update localStorage for legacy pages
-            localStorage.setItem("userFavorites", JSON.stringify(next));
-          } catch (e) {
-            // ignore
-          }
-          try {
-            window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } }));
-          } catch (e) {
-            // ignore
-          }
-          return next;
-        }).catch(function (err) {
-          // on error, fallback to local removal
-          var source = parseJson("userFavorites");
-          var next = [];
-          for (var i = 0; i < source.length; i += 1) {
-            var item = source[i] || {};
-            var itemId = String(item.id || item.object_id || item.code || "");
-            if (itemId !== String(id)) next.push(item);
-          }
-          try { localStorage.setItem("userFavorites", JSON.stringify(next)); } catch (e) {}
-          try { window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } })); } catch (e) {}
-          return next;
+          return syncFavoritesCache(next);
         });
       }
 
-      // legacy local removal
-      var source = parseJson("userFavorites");
+      var source = readFavoritesCache();
       var next = [];
       for (var i = 0; i < source.length; i += 1) {
         var item = source[i] || {};
-        var itemId = String(item.id || item.object_id || item.code || "");
-        if (itemId !== String(id)) {
+        var itemId = favoriteIdFromItem(item);
+        if (itemId !== safeId) {
           next.push(item);
         }
       }
-      localStorage.setItem("userFavorites", JSON.stringify(next));
-      try {
-        window.dispatchEvent(new CustomEvent("app:favorites-changed", { detail: { favorites: next } }));
-      } catch (e) {
-        // ignore
-      }
-      return Promise.resolve(next);
+      return Promise.resolve(syncFavoritesCache(next));
     }
+
+    window.__ibFavoritesStore = {
+      getFavorites: getFavorites,
+      getFavoritesRaw: readFavoritesCache,
+      setFavorites: syncFavoritesCache,
+      removeFavoriteById: removeFavoriteById
+    };
 
     function ensureStyle() {
       if (document.getElementById("ib-favorites-overlay-style")) {
@@ -366,6 +543,9 @@
         var removeId = String(removeBtn.getAttribute("data-fav-remove") || "");
         removeFavoriteById(removeId).then(function () {
           renderFavoritesOverlay();
+        }).catch(function (err) {
+          console.error("Erreur suppression favori:", err);
+          notifyFavorites(err && err.message ? err.message : "Impossible de retirer le favori.", "error");
         });
         return;
       }
@@ -1003,6 +1183,22 @@
 
   function patchUserHistoryLink(root, page) {
     var historyLink = root.querySelector("a[data-history-link='true']");
+    var sideNav = root.querySelector("#sideNav") || root.querySelector("nav");
+
+    if (!historyLink && sideNav) {
+      var favoritesLink = sideNav.querySelector("#openFavoritesOverlay");
+      historyLink = document.createElement("a");
+      historyLink.setAttribute("href", "user.html#history");
+      historyLink.setAttribute("data-history-link", "true");
+      historyLink.innerHTML = '<i class="fas fa-clock-rotate-left"></i><span data-key="nav_history">Historique</span>';
+
+      if (favoritesLink && favoritesLink.parentNode === sideNav) {
+        sideNav.insertBefore(historyLink, favoritesLink);
+      } else {
+        sideNav.appendChild(historyLink);
+      }
+    }
+
     if (!historyLink) {
       return;
     }
@@ -1071,9 +1267,8 @@
           headers: getAuthHeaders()
         }).then(function (resp) { return resp.json(); }).then(function (data) {
           if (data.success && Array.isArray(data.favorites)) {
-            window.userFavorites = data.favorites;
+            syncFavoritesCache(data.favorites);
             console.log("[sidebar-loader] Loaded " + data.favorites.length + " favorites");
-            try { window.dispatchEvent(new CustomEvent('app:favorites-changed', { detail: { favorites: window.userFavorites } })); } catch (e) {}
           }
         }).catch(function (err) { console.error("[sidebar-loader] Error loading favorites:", err); });
       }

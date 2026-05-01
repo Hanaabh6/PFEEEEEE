@@ -48,6 +48,66 @@ class AddFavoriteRequest(BaseModel):
     thing_name: str = Field(..., min_length=1, max_length=160)
 
 
+def _favorite_id_from_row(row: dict) -> str:
+    if not isinstance(row, dict):
+        return ""
+    return str(row.get("id") or row.get("object_id") or row.get("code") or "").strip()
+
+
+def _normalize_favorite_row(row: dict) -> dict | None:
+    favorite_id = _favorite_id_from_row(row)
+    if not favorite_id:
+        return None
+
+    normalized = {
+        "id": favorite_id,
+        "name": str(row.get("name") or row.get("nom") or row.get("title") or favorite_id).strip() or favorite_id,
+        "addedAt": str(
+            row.get("addedAt")
+            or row.get("added_at")
+            or row.get("date")
+            or datetime.now(timezone.utc).isoformat()
+        ).strip(),
+    }
+
+    favorite_type = str(row.get("type") or row.get("category") or row.get("categorie") or "").strip()
+    if favorite_type:
+        normalized["type"] = favorite_type
+
+    favorite_location = str(
+        row.get("location")
+        or row.get("localisation")
+        or row.get("room")
+        or row.get("salle")
+        or ""
+    ).strip()
+    if favorite_location:
+        normalized["location"] = favorite_location
+
+    return normalized
+
+
+def _normalize_favorites(rows) -> list[dict]:
+    normalized: list[dict] = []
+    seen_ids: set[str] = set()
+
+    if not isinstance(rows, list):
+        return normalized
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item = _normalize_favorite_row(row)
+        if not item:
+            continue
+        if item["id"] in seen_ids:
+            continue
+        seen_ids.add(item["id"])
+        normalized.append(item)
+
+    return normalized
+
+
 def extract_bearer_token(request: Request) -> str | None:
     header = request.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
@@ -479,6 +539,7 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
     """Mettre à jour le nom d'affichage de l'utilisateur dans Supabase (UNIQUE)"""
     user = _get_authenticated_user(request)
     user_id = str(user.id)
+    user_email = str(getattr(user, "email", "") or "").strip().lower()
     display_name = str(data.display_name or "").strip()
     
     print(f"[PATCH /user/display-name] user_id={user_id}, display_name='{display_name}'")
@@ -487,15 +548,34 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
         raise HTTPException(status_code=400, detail="Nom d'affichage invalide")
     
     try:
-        # Vérifier que le nom n'existe pas déjà pour un autre utilisateur
-        existing = supabase.table("utilisateur").select("id").eq("display_name", display_name).neq("id", user_id).maybe_single().execute()
-        if existing.data:
-            print(f"[PATCH /user/display-name] Name already exists")
-            raise HTTPException(status_code=409, detail="Ce nom d'affichage est déjà pris. Veuillez en choisir un autre.")
-        
-        # Mettre à jour
+        profile_row = _get_user_profile_row(user_id)
+
+        # Vérification robuste sans maybe_single(), qui peut lever une erreur si plusieurs lignes matchent.
+        existing = supabase.table("utilisateur").select("id,display_name").eq("display_name", display_name).execute()
+        existing_rows = []
+        existing_data = getattr(existing, "data", None)
+        if isinstance(existing_data, list):
+            existing_rows = existing_data
+        elif isinstance(existing_data, dict):
+            existing_rows = [existing_data]
+
+        for row in existing_rows:
+            row_id = str((row or {}).get("id") or "").strip()
+            if row_id and row_id != user_id:
+                print(f"[PATCH /user/display-name] Name already exists for another user: {row_id}")
+                raise HTTPException(status_code=409, detail="Ce nom d'affichage est deja pris. Veuillez en choisir un autre.")
+
         print(f"[PATCH /user/display-name] Calling Supabase update...")
-        result = supabase.table("utilisateur").update({"display_name": display_name}).eq("id", user_id).execute()
+        if profile_row:
+            result = supabase.table("utilisateur").update({"display_name": display_name}).eq("id", user_id).execute()
+        else:
+            print(f"[PATCH /user/display-name] Missing profile row, creating it...")
+            result = supabase.table("utilisateur").insert({
+                "id": user_id,
+                "email": user_email,
+                "role": "user",
+                "display_name": display_name,
+            }).execute()
         print(f"[PATCH /user/display-name] Supabase result: {result}")
         
         # Certains clients Supabase retournent une erreur ou status en cas de violation de contrainte
@@ -507,7 +587,7 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
         if err:
             msg = str(err)
             if 'duplicate' in msg.lower() or 'unique' in msg.lower() or 'violat' in msg.lower():
-                raise HTTPException(status_code=409, detail="Ce nom d'affichage est déjà pris. Veuillez en choisir un autre.")
+                raise HTTPException(status_code=409, detail="Ce nom d'affichage est deja pris. Veuillez en choisir un autre.")
             print(f"Supabase update returned error: {err}")
 
         print(f"[PATCH /user/display-name] SUCCESS!")
@@ -517,7 +597,7 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
     except Exception as e:
         print(f"Erreur update display_name: {e}")
         import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Erreur mise à jour profil")
+        raise HTTPException(status_code=500, detail="Impossible de mettre a jour le nom d'affichage.")
 
 
 @auth_router.get("/user/favorites")
@@ -528,11 +608,15 @@ def get_user_favorites(request: Request):
     
     try:
         query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
-        favorites = query.data.get("favorites", []) if query.data else []
-        
-        if not isinstance(favorites, list):
-            favorites = []
-        
+        raw_favorites = query.data.get("favorites", []) if query.data else []
+        favorites = _normalize_favorites(raw_favorites)
+
+        if raw_favorites != favorites:
+            try:
+                supabase.table("utilisateur").update({"favorites": favorites}).eq("id", user_id).execute()
+            except Exception as sync_error:
+                print(f"Erreur sync favorites normalises: {sync_error}")
+
         return {"success": True, "favorites": favorites}
     except Exception as e:
         print(f"Erreur get favorites: {e}")
@@ -553,13 +637,10 @@ def add_favorite(request: Request, data: AddFavoriteRequest = Body(...)):
     try:
         # Charger les favoris existants
         query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
-        favorites = query.data.get("favorites", []) if query.data else []
-        
-        if not isinstance(favorites, list):
-            favorites = []
+        favorites = _normalize_favorites(query.data.get("favorites", []) if query.data else [])
         
         # Vérifier si déjà en favori
-        if any(fav.get("id") == thing_id for fav in favorites if isinstance(fav, dict)):
+        if any(_favorite_id_from_row(fav) == thing_id for fav in favorites if isinstance(fav, dict)):
             return {"success": True, "message": "Déjà en favori", "favorites": favorites}
         
         # Ajouter le nouveau favori
@@ -632,15 +713,15 @@ def remove_favorite(thing_id: str, request: Request):
         print(f"[DELETE /user/favorites/{thing_id}] Loading favorites...")
         query = supabase.table("utilisateur").select("favorites").eq("id", user_id).maybe_single().execute()
         print(f"[DELETE /user/favorites/{thing_id}] Query result: {query.data}")
-        favorites = query.data.get("favorites", []) if query.data else []
-        
-        if not isinstance(favorites, list):
-            favorites = []
+        favorites = _normalize_favorites(query.data.get("favorites", []) if query.data else [])
         
         print(f"[DELETE /user/favorites/{thing_id}] Current favorites count: {len(favorites)}")
         
         # Filtrer pour supprimer
-        updated_favorites = [fav for fav in favorites if not (isinstance(fav, dict) and fav.get("id") == thing_id_safe)]
+        updated_favorites = [
+            fav for fav in favorites
+            if not (isinstance(fav, dict) and _favorite_id_from_row(fav) == thing_id_safe)
+        ]
         print(f"[DELETE /user/favorites/{thing_id}] After filter count: {len(updated_favorites)}")
         
         # Sauvegarder

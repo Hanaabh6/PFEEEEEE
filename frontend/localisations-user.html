@@ -255,7 +255,7 @@
   </script></head>
 <body class="flex">
 
-    <script src="sidebar-loader.js"></script>
+    <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
     <div class="flex-1">
         <header class="sticky top-0 z-40 px-8 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-gray-200">
@@ -359,10 +359,25 @@
     const apiBase = window.APP_CONFIG.API_BASE;
         const userToken = localStorage.getItem("userToken");
     const PROFILE_NAME_KEY = "userDisplayName";
-    let userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+    let userFavorites = [];
+    try {
+        if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.getFavoritesRaw === "function") {
+            userFavorites = window.__ibFavoritesStore.getFavoritesRaw();
+        } else {
+            userFavorites = JSON.parse(localStorage.getItem("userFavorites") || "[]");
+        }
+    } catch (error) {
+        userFavorites = [];
+    }
     let userReports = JSON.parse(localStorage.getItem("userReports") || "[]");
 
         if (!userToken) window.location.href = "login.html";
+
+        window.addEventListener("app:favorites-changed", function (event) {
+            if (event && event.detail && Array.isArray(event.detail.favorites)) {
+                userFavorites = event.detail.favorites;
+            }
+        });
 
         function tr(key, fallback, params) {
             if (window.getTranslationText) return window.getTranslationText(key, fallback, params);
@@ -1292,6 +1307,13 @@
         }
 
         function removeFavorite(objId) {
+            if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.removeFavoriteById === "function") {
+                window.__ibFavoritesStore.removeFavoriteById(objId).then(function (next) {
+                    userFavorites = Array.isArray(next) ? next : [];
+                    openOverlay(tr("favorites_title", "Mes favoris"), buildFavoritesOverlayHtml());
+                });
+                return;
+            }
             userFavorites = userFavorites.filter(f => f.id !== objId);
             localStorage.setItem("userFavorites", JSON.stringify(userFavorites));
             openOverlay(tr("favorites_title", "Mes favoris"), buildFavoritesOverlayHtml());

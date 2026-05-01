@@ -259,7 +259,7 @@
   </script></head>
 <body>
   <div class="container">
-  <script src="sidebar-loader.js"></script>
+  <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
   <div class="main-area">
   <main class="wrap">
@@ -520,6 +520,12 @@
           const removeFav = event.target.closest("[data-remove-fav]");
           if (removeFav) {
             const id = String(removeFav.getAttribute("data-remove-fav") || "");
+            if (window.__ibFavoritesStore && typeof window.__ibFavoritesStore.removeFavoriteById === "function") {
+              Promise.resolve(window.__ibFavoritesStore.removeFavoriteById(id)).then(function () {
+                openFavorites();
+              });
+              return;
+            }
             const next = readJson("userFavorites").filter(function (f) {
               return String((f && f.id) || "") !== id;
             });
@@ -552,7 +558,9 @@
       }
 
       function openFavorites() {
-        const favorites = readJson("userFavorites");
+        const favorites = window.__ibFavoritesStore && typeof window.__ibFavoritesStore.getFavoritesRaw === "function"
+          ? window.__ibFavoritesStore.getFavoritesRaw()
+          : readJson("userFavorites");
         if (!favorites.length) {
           openOverlay("Mes favoris", '<p class="nav-collections-empty">Aucun objet dans vos favoris pour le moment.</p>');
           return;
@@ -629,5 +637,3 @@
   <script src="sidebar-overlay-active.js"></script>
 </body>
 </html>
-
-

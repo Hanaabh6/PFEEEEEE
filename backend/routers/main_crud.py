@@ -252,6 +252,27 @@ def _extract_keywords(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", norm)
 
 
+def _find_thing_with_same_name(name: str, exclude_id: str = "") -> dict | None:
+    target_name = _normalize_text(name)
+    if not target_name:
+        return None
+
+    safe_exclude_id = str(exclude_id or "").strip()
+    for item in _things_collection().find({}, {"id": 1, "name": 1, "search_name_norm": 1}):
+        if not isinstance(item, dict):
+            continue
+
+        current_id = str(item.get("id") or "").strip()
+        if safe_exclude_id and current_id == safe_exclude_id:
+            continue
+
+        current_name = str(item.get("search_name_norm") or "").strip() or _normalize_text(str(item.get("name") or ""))
+        if current_name == target_name:
+            return item
+
+    return None
+
+
 def _build_keyword_docs(item: dict) -> list[dict]:
     thing_id = str(item.get("id", "")).strip()
     fields = [
@@ -296,6 +317,11 @@ def _reindex_thing(item: dict) -> None:
 def add_thing(request: Request, data: AddThingRequest = Body(...)):
     require_admin(request)
     try:
+        duplicate = _find_thing_with_same_name(data.name)
+        if duplicate:
+            duplicate_name = str(duplicate.get("name") or data.name).strip()
+            raise HTTPException(status_code=409, detail=f"Un objet avec le nom '{duplicate_name}' existe deja.")
+
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
         availability = _canonical_availability(data.status)
@@ -343,9 +369,11 @@ def add_thing(request: Request, data: AddThingRequest = Body(...)):
             metadata={"thing_id": new_item["id"], "action": "add"},
         )
         return {"message": "Succes", "id": new_item["id"]}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Erreur add: {e}")
-        raise HTTPException(status_code=500, detail="Erreur MongoDB")
+        raise HTTPException(status_code=500, detail="Impossible d'ajouter l'objet.")
 
 
 @crud_router.get("/things/{thing_id}")
@@ -377,7 +405,7 @@ def get_thing(thing_id: str):
         raise
     except Exception as e:
         print(f"Erreur get thing: {e}")
-        raise HTTPException(status_code=500, detail="Erreur MongoDB")
+        raise HTTPException(status_code=500, detail="Impossible de recuperer l'objet.")
 
 
 @crud_router.patch("/things/{thing_id}/status")
@@ -437,7 +465,7 @@ def update_thing_status(thing_id: str, data: dict = Body(...)):
         raise
     except Exception as e:
         print(f"Erreur update status: {e}")
-        raise HTTPException(status_code=500, detail="Erreur MongoDB")
+        raise HTTPException(status_code=500, detail="Impossible de mettre a jour le statut de l'objet.")
 
 
 @crud_router.put("/things/{thing_id}")
@@ -520,7 +548,7 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
         raise
     except Exception as e:
         print(f"Erreur update thing: {e}")
-        raise HTTPException(status_code=500, detail="Erreur MongoDB")
+        raise HTTPException(status_code=500, detail="Impossible de modifier l'objet.")
 
 
 def _cleanup_orphan_keywords() -> int:
@@ -590,4 +618,3 @@ def cleanup_orphan_keywords_endpoint(request: Request):
     )
     
     return {"success": True, "orphan_keywords_deleted": cleaned_count}
-    

@@ -253,6 +253,9 @@
     .role-item h4 { margin: 0 0 6px; font-size: 14px; color: #0f172a; }
     .role-item p { margin: 0; font-size: 13px; color: #334155; }
 
+    .page-stat-grid .page-stat-card:last-child { display: none; }
+    .main-wrap > section.glass.p-5:last-of-type { display: none; }
+
     @media (max-width: 1080px) {
       body { display: block; }
       .sidebar { position: static; width: 100%; min-height: auto; }
@@ -262,7 +265,7 @@
   </style>
 </head>
 <body>
-  <script src="sidebar-loader.js"></script>
+  <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
   <main class="main-wrap">
     <section class="page-hero glass mb-5">
@@ -273,7 +276,6 @@
         <div class="page-badges">
           <span class="page-badge">Gestion utilisateurs</span>
           <span class="page-badge">Activité récente</span>
-          <span class="page-badge">Historique admin</span>
         </div>
       </div>
       <div class="hero-note-card">
@@ -305,7 +307,6 @@
       </article>
       <article class="page-stat-card">
         <p class="page-stat-label">Entrées historique</p>
-        <p id="settingsHistoryMetric" class="page-stat-value">0</p>
         <p class="page-stat-note">Actions admin actuellement disponibles.</p>
       </article>
     </section>
@@ -381,7 +382,7 @@
       <p id="activityEmpty" class="text-slate-500 mt-2" hidden>Aucune activite utilisateur recente.</p>
     </section>
 
-    <section class="glass p-5">
+    <section class="glass p-5" hidden>
       <div class="flex items-center justify-between gap-3 mb-3">
         <h2 class="text-xl font-black text-slate-800 m-0">Historique admin</h2>
         <button id="refreshHistoryBtn" class="btn btn-outline">Rafraichir historique</button>
@@ -651,12 +652,13 @@
         const role = String(profile.role || "admin");
         const userId = String(profile.id || localStorage.getItem("userId") || "");
         const scopedName = String(localStorage.getItem(scopedKey("userDisplayName", userId)) || "").trim();
-        // Prefer scoped per-user name (for local edits), then explicit profile.display_name, then fallback to email-derived name.
-        const displayName = scopedName || String(profile.display_name || "").trim() || displayNameFromEmail(email);
+        const displayName = String(profile.display_name || "").trim() || scopedName || displayNameFromEmail(email);
         const bio = getAdminBio(profile);
 
         localStorage.setItem("userEmail", email);
         localStorage.setItem("userRole", role);
+        localStorage.setItem("userDisplayName", displayName);
+        localStorage.setItem("adminDisplayName", displayName);
         if (userId) {
           localStorage.setItem("userId", userId);
           localStorage.setItem(scopedKey("userDisplayName", userId), displayName);
@@ -791,7 +793,6 @@
 
         await logAction("Gestion utilisateurs", `Role modifie pour ${data.email || userId}: ${nextRole}`, "Succes");
         await loadUsers();
-        await loadHistory();
         alert("Role utilisateur mis a jour.");
       } catch (error) {
         console.error("Erreur changement role:", error);
@@ -823,7 +824,6 @@
 
         await logAction("Gestion utilisateurs", `Suppression utilisateur ${data.email || userId}`, "Succes");
         await loadUsers();
-        await loadHistory();
         alert("Utilisateur supprimé.");
       } catch (err) {
         console.error("Erreur suppression utilisateur:", err);
@@ -833,7 +833,6 @@
 
     document.getElementById("refreshUsersBtn").addEventListener("click", loadUsers);
     document.getElementById("refreshActivityBtn").addEventListener("click", loadUserActivity);
-    document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistory);
 
     document.getElementById("signOutBtn").addEventListener("click", async function () {
       await logAction("Session", "Deconnexion admin", "Succes");
@@ -867,11 +866,31 @@
         return;
       }
 
+      try {
+        const response = await fetch(`${apiBase}/user/display-name`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ display_name: name })
+        });
+        const payload = await response.json().catch(function () { return {}; });
+        if (!response.ok || !payload.success) {
+          throw new Error(String(payload.detail || payload.message || "Impossible de mettre a jour le nom."));
+        }
+      } catch (error) {
+        console.error("Erreur update display name admin:", error);
+        alert(String(error && error.message ? error.message : "Impossible de mettre a jour le nom."));
+        return;
+      }
+
       const uid = String((currentAdminProfile && currentAdminProfile.id) || localStorage.getItem("userId") || "");
+      if (currentAdminProfile && typeof currentAdminProfile === "object") {
+        currentAdminProfile.display_name = name;
+      }
       if (uid) {
         localStorage.setItem(scopedKey("userDisplayName", uid), name);
       }
       localStorage.setItem("userDisplayName", name);
+      localStorage.setItem("adminDisplayName", name);
       setAdminBio(currentAdminProfile, bio);
       if (window.refreshSidebarProfileCards) {
         window.refreshSidebarProfileCards({
@@ -885,7 +904,6 @@
       await logAction("Profil", "Edition profil admin", "Succes");
       closeEditAdmin();
       await loadAdminProfile();
-      await loadHistory();
     });
 
     if (langSelect) {
@@ -896,7 +914,6 @@
     loadAdminProfile();
     loadUsers();
     loadUserActivity();
-    loadHistory();
 
     window.changeUserRole = changeUserRole;
     window.deleteUser = deleteUser;

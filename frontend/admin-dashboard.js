@@ -101,10 +101,62 @@
       fetch(`${apiBase}/admin/stats/top-reported?limit=6`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[])
     ]);
     const copt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{display:false},beginAtZero:true}}};
+    Object.values(chartInstances).forEach(chart => {
+      if (chart && typeof chart.destroy === 'function') chart.destroy();
+    });
+
+    function setBarChartHeight(canvasId, labelCount) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !canvas.parentElement) return;
+      const rows = Math.max(1, Number(labelCount) || 0);
+      canvas.parentElement.style.height = Math.max(160, rows * 48) + 'px';
+    }
+
+    function barChartOptions(values) {
+      const numericValues = Array.isArray(values) ? values.map(v => Math.max(0, Number(v) || 0)) : [];
+      const maxValue = numericValues.length ? Math.max(...numericValues) : 0;
+      return {
+        ...copt,
+        indexAxis:'y',
+        scales:{
+          x:{
+            beginAtZero:true,
+            max:Math.max(1, maxValue),
+            ticks:{
+              stepSize:1,
+              precision:0
+            },
+            grid:{
+              color:'rgba(148, 163, 184, 0.18)'
+            }
+          },
+          y:{
+            beginAtZero:true,
+            ticks:{
+              autoSkip:false
+            },
+            grid:{
+              display:true,
+              color:'rgba(148, 163, 184, 0.12)',
+              drawBorder:false
+            }
+          }
+        }
+      };
+    }
+
+    const topViewedLabels = (tv||[]).map(x=>x.name||'Sans nom').slice(0,6);
+    const topViewedValues = (tv||[]).map(x=>x.view_count||0).slice(0,6);
+    const topReportedLabels = (tr||[]).map(x=>x.thing_name||'Inconnu').slice(0,6);
+    const topReportedValues = (tr||[]).map(x=>x.count||0).slice(0,6);
+
+    setBarChartHeight('chartTopViewed', topViewedLabels.length);
+    setBarChartHeight('chartTopReported', topReportedLabels.length);
+
     chartInstances.type=new Chart(document.getElementById('chartByType'),{type:'doughnut',data:{labels:(bt||[]).map(x=>x.type||'Inconnu'),datasets:[{data:(bt||[]).map(x=>x.count||0),backgroundColor:cols,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}},cutout:'65%'}});
     chartInstances.status=new Chart(document.getElementById('chartByStatus'),{type:'doughnut',data:{labels:(bs||[]).map(x=>x.status||'Inconnu'),datasets:[{data:(bs||[]).map(x=>x.count||0),backgroundColor:(bs||[]).map(x=>scols[x.status]||'#94a3b8'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}},cutout:'65%'}});
-    chartInstances.viewed=new Chart(document.getElementById('chartTopViewed'),{type:'bar',data:{labels:(tv||[]).map(x=>x.name||'Sans nom').slice(0,6),datasets:[{label:'Vues',data:(tv||[]).map(x=>x.view_count||0).slice(0,6),backgroundColor:'#10b981',borderRadius:6}]},options:{...copt,indexAxis:'y'}});
-    chartInstances.reported=new Chart(document.getElementById('chartTopReported'),{type:'bar',data:{labels:(tr||[]).map(x=>x.thing_name||'Inconnu').slice(0,6),datasets:[{label:'Signalements',data:(tr||[]).map(x=>x.count||0).slice(0,6),backgroundColor:'#ef4444',borderRadius:6}]},options:{...copt,indexAxis:'y'}});
+    chartInstances.viewed=new Chart(document.getElementById('chartTopViewed'),{type:'bar',data:{labels:topViewedLabels,datasets:[{label:'Vues',data:topViewedValues,backgroundColor:'#10b981',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topViewedValues)});
+    chartInstances.reported=new Chart(document.getElementById('chartTopReported'),{type:'bar',data:{labels:topReportedLabels,datasets:[{label:'Signalements',data:topReportedValues,backgroundColor:'#ef4444',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topReportedValues)});
   }
 
   async function loadActivity(){
