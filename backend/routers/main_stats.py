@@ -64,13 +64,18 @@ def get_overview_stats(request: Request):
         })
         
         # Signalements non lus / en attente
-        pending_reports = notifications_collection.count_documents({
+        notif_unread = notifications_collection.count_documents({
             "notif_type": "warning",
             "$or": [
                 {"is_read": False},
                 {"is_read": {"$exists": False}}
             ]
         })
+        # Also include 'signalement' actions recorded in user_history_collection
+        history_reports = user_history_collection.count_documents({
+            "action": {"$regex": "signal|SIGNALEMENT", "$options": "i"}
+        })
+        pending_reports = notif_unread + history_reports
         
         # Total vues
         views_pipeline = [

@@ -41,12 +41,11 @@
 
     <main class="flex-1" style="padding:32px">
         <header class="admin-header animate-fadeIn">
-            <div class="admin-header-brand">
-                <img src="intellibuild-mark.svg" alt="IntelliBuild">
-                <span>IntelliBuild <span style="color:#10b981;font-size:12px;font-weight:700;margin-left:4px">ADMIN</span></span>
+            <div class="admin-header-brand" id="headerPosition">
+                <i class="fas fa-street-view" style="font-size:18px;color:#10b981;margin-right:8px"></i>
+                <span id="positionDebugText">Salle inconnue</span>
             </div>
             <div class="admin-header-search">
-                <i class="fas fa-search"></i>
                 <input type="text" id="globalSearch" placeholder="Rechercher un objet, une salle, un type...">
             </div>
             <div class="admin-header-actions">
@@ -71,42 +70,31 @@
             </div>
         </header>
 
-        <section class="dashboard-hero-v2 animate-fadeInUp delay-1">
-            <div>
-                <h1>Centre de contrôle IntelliBuild</h1>
-                <p>Pilotez vos objets connectés, suivez l'activité et prenez des décisions éclairées en temps réel.</p>
-                <div class="hero-badges-v2">
-                    <span class="hero-badge-v2"><i class="fas fa-wifi" style="font-size:10px;margin-right:4px"></i>Temps réel</span>
-                    <span class="hero-badge-v2"><i class="fas fa-chart-line" style="font-size:10px;margin-right:4px"></i>Analytics</span>
-                    <span class="hero-badge-v2"><i class="fas fa-shield-alt" style="font-size:10px;margin-right:4px"></i>Supervision</span>
-                </div>
-            </div>
-            <div id="positionDebugBadge" class="hidden md:flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl font-bold text-sm border border-emerald-200">
-                <i class="fas fa-street-view"></i><span id="positionDebugText">Salle inconnue</span>
-            </div>
-        </section>
+        <!-- hero removed per user request; position shown in header -->
 
-        <div class="quick-actions animate-fadeInUp delay-2">
-            <a href="ajouter-objet.html" class="quick-action-btn primary"><i class="fas fa-plus"></i> Ajouter un objet</a>
-            <a href="objets.html" class="quick-action-btn secondary"><i class="fas fa-boxes"></i> Inventaire</a>
-            <a href="localisations.html" class="quick-action-btn secondary"><i class="fas fa-map-marked-alt"></i> Carte 3D</a>
-            <a href="notifications-admin.html" class="quick-action-btn secondary"><i class="fas fa-exclamation-triangle"></i> Signalements</a>
-            <a href="parametres.html" class="quick-action-btn secondary"><i class="fas fa-sliders-h"></i> Paramètres</a>
-        </div>
+        <div class="top-layout">
+            <div class="quick-actions-col animate-fadeInUp delay-2">
+                <a href="ajouter-objet.html" class="quick-action-btn primary"><i class="fas fa-plus"></i> Ajouter un objet</a>
+                <a href="objets.html" class="quick-action-btn secondary"><i class="fas fa-boxes"></i> Inventaire</a>
+                <a href="localisations.html" class="quick-action-btn secondary"><i class="fas fa-map-marked-alt"></i> Carte 3D</a>
+                <a href="#" class="quick-action-btn secondary" id="quickReports" onclick="return window.__ibOpenAdminReportsOverlay ? window.__ibOpenAdminReportsOverlay(event) : false;"><i class="fas fa-exclamation-triangle"></i> Signalements</a>
+                <a href="parametres.html" class="quick-action-btn secondary"><i class="fas fa-sliders-h"></i> Paramètres</a>
+            </div>
 
-        <section class="kpi-grid animate-fadeInUp delay-2">
+            <div class="main-stats">
+                <section class="kpi-grid animate-fadeInUp delay-2">
             <div class="kpi-card">
                 <div class="kpi-card-header"><span class="kpi-card-label">Total Objets</span><div class="kpi-card-icon emerald"><i class="fas fa-layer-group"></i></div></div>
                 <div class="kpi-card-value" id="kpiTotal">0</div><div class="kpi-card-hint">Dans l'inventaire</div>
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barTotal" style="width:100%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-card-header"><span class="kpi-card-label">Objets Actifs</span><div class="kpi-card-icon teal"><i class="fas fa-check-circle"></i></div></div>
+                <div class="kpi-card-header"><span class="kpi-card-label">Disponibles</span><div class="kpi-card-icon teal"><i class="fas fa-check-circle"></i></div></div>
                 <div class="kpi-card-value" id="kpiActive" style="color:#047857">0</div><div class="kpi-card-hint" id="kpiActivePct">0% du total</div>
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barActive" style="width:0%;background:linear-gradient(90deg,#14b8a6,#2dd4bf)"></div></div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-card-header"><span class="kpi-card-label">Inactifs / HS</span><div class="kpi-card-icon rose"><i class="fas fa-ban"></i></div></div>
+                <div class="kpi-card-header"><span class="kpi-card-label">Indisponible</span><div class="kpi-card-icon rose"><i class="fas fa-ban"></i></div></div>
                 <div class="kpi-card-value" id="kpiInactive" style="color:#e11d48">0</div><div class="kpi-card-hint" id="kpiInactivePct">0% du total</div>
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barInactive" style="width:0%;background:linear-gradient(90deg,#f43f5e,#fb7185)"></div></div>
             </div>
@@ -116,7 +104,7 @@
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barBroken" style="width:0%;background:linear-gradient(90deg,#f97316,#fb923c)"></div></div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-card-header"><span class="kpi-card-label">Empruntés</span><div class="kpi-card-icon blue"><i class="fas fa-hand-holding"></i></div></div>
+                <div class="kpi-card-header"><span class="kpi-card-label">En utilisation</span><div class="kpi-card-icon blue"><i class="fas fa-hand-holding"></i></div></div>
                 <div class="kpi-card-value" id="kpiBorrowed" style="color:#2563eb">0</div><div class="kpi-card-hint">En utilisation</div>
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barBorrowed" style="width:0%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
             </div>
@@ -135,34 +123,30 @@
                 <div class="kpi-card-value" id="kpiRooms" style="color:#475569">0</div><div class="kpi-card-hint">Zones couvertes</div>
                 <div class="kpi-card-bar"><div class="kpi-card-bar-fill" id="barRooms" style="width:100%;background:linear-gradient(90deg,#64748b,#94a3b8)"></div></div>
             </div>
-        </section>
+            </section>
 
-        <section class="charts-grid animate-fadeInUp delay-3">
+            <section class="charts-grid animate-fadeInUp delay-3">
             <div class="chart-card"><div class="chart-card-title"><i class="fas fa-chart-pie"></i> Répartition par type</div><div class="chart-container"><canvas id="chartByType"></canvas></div></div>
             <div class="chart-card"><div class="chart-card-title"><i class="fas fa-chart-pie"></i> Répartition par statut</div><div class="chart-container"><canvas id="chartByStatus"></canvas></div></div>
             <div class="chart-card"><div class="chart-card-title"><i class="fas fa-chart-bar"></i> Objets les plus consultés</div><div class="chart-container"><canvas id="chartTopViewed"></canvas></div></div>
             <div class="chart-card"><div class="chart-card-title"><i class="fas fa-chart-bar"></i> Objets les plus signalés</div><div class="chart-container"><canvas id="chartTopReported"></canvas></div></div>
-        </section>
+                </section>
+            </div>
+        </div>
 
-        <section class="activity-card animate-fadeInUp delay-4">
-            <div class="activity-card-title"><i class="fas fa-clock"></i> Activité récente</div>
+        <!-- recent activity removed per user request -->
+
+        <section class="table-box animate-fadeInUp delay-5" style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <h3 class="section-head">Inventaire</h3>
+                <div style="font-size:12px;font-weight:700;color:#64748b">Liste complète</div>
+            </div>
             <div style="overflow-x:auto">
-                <table class="activity-table">
-                    <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détail</th><th>Statut</th></tr></thead>
-                    <tbody id="activityBody"><tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:24px">Chargement...</td></tr></tbody>
+                <table id="objectsTable" class="w-full text-left">
+                    <thead class="text-gray-600 border-b border-gray-300"><tr class="text-[11px] uppercase font-bold tracking-wider"><th class="p-3">Nom</th><th class="p-3">Type</th><th class="p-3">Salle</th><th class="p-3">Vérifier</th><th class="p-3 w-12"></th></tr></thead>
+                    <tbody id="tableBody" class="text-gray-700 divide-y divide-gray-200"></tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="glass-main p-6 rounded-3xl shadow-2xl animate-fadeInUp delay-5" style="margin-bottom:28px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-                <h3 style="font-size:15px;font-weight:800;color:#0f172a"><i class="fas fa-list" style="color:#047857;margin-right:8px"></i> Objets récents</h3>
-                <a href="objets.html" style="font-size:12px;font-weight:700;color:#047857;text-decoration:none">Voir tout <i class="fas fa-arrow-right" style="margin-left:4px"></i></a>
-            </div>
-            <table class="w-full text-left">
-                <thead class="text-gray-600 border-b border-gray-300"><tr class="text-[11px] uppercase font-bold tracking-wider"><th class="p-3">Nom</th><th class="p-3">Type</th><th class="p-3">Localisation</th><th class="p-3">Statut</th><th class="p-3 w-12"></th></tr></thead>
-                <tbody id="tableBody" class="text-gray-700 divide-y divide-gray-200"></tbody>
-            </table>
         </section>
 
         <footer class="glass-main mt-8 p-3 rounded-2xl flex items-center justify-between text-[11px] text-gray-700 animate-fadeIn delay-6">

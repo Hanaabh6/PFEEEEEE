@@ -569,7 +569,7 @@
         const list = Array.isArray(data) ? data : [];
 
         notifList.innerHTML = list.map((n) => `
-          <article class="notif ${n.is_read ? "" : "unread-item"}">
+          <article class="notif ${n.is_read ? "" : "unread-item"}" data-id="${n.id}" data-read="${n.is_read ? "1" : "0"}">
             <div class="row-top">
               <h4>${(n.title || tr("notification_default_title", "Notification")).replace(/</g, "&lt;")}</h4>
               <span class="badge ${typeClass(n.type)}">${String(n.type || "info")}</span>
@@ -610,6 +610,16 @@
 
     refreshBtn.addEventListener("click", loadNotifications);
     markAllBtn.addEventListener("click", markAllAsRead);
+    notifList.addEventListener("click", function (event) {
+      const button = event.target.closest("button");
+      if (button) return;
+      const card = event.target.closest(".notif");
+      if (!card || !notifList.contains(card)) return;
+      if (card.getAttribute("data-read") === "1") return;
+      const id = card.getAttribute("data-id");
+      if (!id) return;
+      markOneAsRead(id);
+    });
     overlayBackdrop.addEventListener("click", closeOverlay);
     overlayClose.addEventListener("click", closeOverlay);
 
