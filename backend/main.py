@@ -15,6 +15,7 @@ from backend.routers.main_devices import devices_router
 from backend.routers.main_localisation import canonical_room_name, coords_from_room, localisation_router
 from backend.routers.main_notifications import notifications_router
 from backend.routers.main_recherche import recherche_router
+from backend.routers.main_stats import stats_router
 
 
 app = FastAPI(title="IntelliBuild")
@@ -141,6 +142,7 @@ app.include_router(borrow_router)
 app.include_router(crud_router)
 app.include_router(notifications_router)
 app.include_router(devices_router)
+app.include_router(stats_router)
 
 
 @app.on_event("startup")
@@ -165,4 +167,3 @@ def frontend_home():
 
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
-    
