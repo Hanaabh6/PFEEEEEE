@@ -1404,6 +1404,72 @@ reset_error_update: "تعذر تحديث كلمة المرور.",
     }
   };
 
+  Object.assign(translations.fr, {
+    login_doc_title: "Bienvenue - IntelliBuild",
+    login_title: "Bienvenue",
+    login_sub: "Bienvenue a votre plateforme Smart Building",
+    login_welcome_eyebrow: "Bienvenue",
+    login_showcase_kicker: "Smart Building",
+    login_showcase_title: "Une connexion plus claire pour piloter vos objets, vos espaces et vos actions.",
+    login_showcase_text: "Retrouvez un parcours plus fluide, plus professionnel et coherent avec l'univers IntelliBuild.",
+    login_showcase_item_1_title: "Dashboard",
+    login_showcase_item_1_text: "clair et rassurant",
+    login_showcase_item_2_title: "Objets",
+    login_showcase_item_2_text: "suivi plus rapide",
+    login_showcase_item_3_title: "Parcours",
+    login_showcase_item_3_text: "acces sans friction",
+    login_chip_1: "Interface premium",
+    login_chip_2: "Palette IntelliBuild",
+    login_chip_3: "Acces securise",
+    auth_link_register_inline: 'Pas de compte ? <a href="register.html">S\'inscrire</a>',
+    login_note_title: "Acces direct",
+    login_note_text: "Vous serez redirige automatiquement vers l'espace admin ou utilisateur apres connexion."
+  });
+
+  Object.assign(translations.en, {
+    login_doc_title: "Welcome - IntelliBuild",
+    login_title: "Welcome back",
+    login_sub: "Sign in to get back to your IntelliBuild workspace.",
+    login_welcome_eyebrow: "Welcome",
+    login_showcase_kicker: "Smart Building",
+    login_showcase_title: "A clearer sign-in experience for your objects, spaces and daily actions.",
+    login_showcase_text: "Enjoy a smoother, more professional flow aligned with the IntelliBuild visual identity.",
+    login_showcase_item_1_title: "Dashboard",
+    login_showcase_item_1_text: "clear and reassuring",
+    login_showcase_item_2_title: "Objects",
+    login_showcase_item_2_text: "faster tracking",
+    login_showcase_item_3_title: "Journey",
+    login_showcase_item_3_text: "frictionless access",
+    login_chip_1: "Premium UI",
+    login_chip_2: "IntelliBuild palette",
+    login_chip_3: "Secure access",
+    auth_link_register_inline: 'No account? <a href="register.html">Sign up</a>',
+    login_note_title: "Direct access",
+    login_note_text: "After signing in, you are automatically redirected to the admin or user space."
+  });
+
+  Object.assign(translations.ar, {
+    login_doc_title: "مرحبا - إنتيليبيلد",
+    login_title: "مرحبا بعودتك",
+    login_sub: "سجل الدخول للعودة إلى مساحة IntelliBuild الخاصة بك.",
+    login_welcome_eyebrow: "مرحبا",
+    login_showcase_kicker: "المبنى الذكي",
+    login_showcase_title: "تجربة دخول أوضح لإدارة الأجهزة والمساحات والمهام اليومية.",
+    login_showcase_text: "واجهة أكثر سلاسة واحترافية ومنسجمة مع هوية IntelliBuild.",
+    login_showcase_item_1_title: "لوحة التحكم",
+    login_showcase_item_1_text: "واضحة ومطمئنة",
+    login_showcase_item_2_title: "الأجهزة",
+    login_showcase_item_2_text: "متابعة أسرع",
+    login_showcase_item_3_title: "المسار",
+    login_showcase_item_3_text: "وصول بدون تعقيد",
+    login_chip_1: "واجهة احترافية",
+    login_chip_2: "هوية IntelliBuild",
+    login_chip_3: "دخول آمن",
+    auth_link_register_inline: 'ليس لديك حساب؟ <a href="register.html">سجل الآن</a>',
+    login_note_title: "دخول مباشر",
+    login_note_text: "بعد تسجيل الدخول سيتم توجيهك تلقائيا إلى مساحة المشرف أو المستخدم."
+  });
+
   const autoTranslations = {
     en: {
       "Signalements": "Reports",
@@ -2839,4 +2905,3 @@ reset_error_update: "تعذر تحديث كلمة المرور.",
     applyTranslations(localStorage.getItem("lang") || "fr");
   });
 })();
-

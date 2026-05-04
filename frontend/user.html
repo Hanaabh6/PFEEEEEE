@@ -1870,6 +1870,15 @@ async function loadUserThings(query) {
 
     const items = await response.json();
     const list = Array.isArray(items) ? items : [];
+    // Remove objects that are in 'broken' state for user view
+    const visibleList = (list || []).filter(function(item){
+      try{ return toStatusCode(getObjectStatusSource(item)) !== 'broken'; }catch(e){ return true; }
+    });
+    // Sort: available (active) first, then in_use, then inactive
+    visibleList.sort(function(a,b){
+      const rank = function(it){ const s=toStatusCode(getObjectStatusSource(it)); if(s==='active')return 0; if(s==='in_use')return 1; return 2; };
+      return rank(a) - rank(b);
+    });
     objectDetailsCache.clear();
 
     const userCoords = { x: user_x, y: user_y, z: user_z };
@@ -1878,7 +1887,7 @@ async function loadUserThings(query) {
       userCurrentPos.textContent = user_room || "Non definie";
     }
 
-    objectsBody.innerHTML = list.map(function (item) {
+    objectsBody.innerHTML = visibleList.map(function (item) {
       const objectId = String(item.id || item._id || "").trim();
       const statusCode = toStatusCode(getObjectStatusSource(item));
       const statusClass = statusCode === "active" ? "status-active" : "status-inactive";
@@ -1932,9 +1941,9 @@ async function loadUserThings(query) {
       `;
     }).join("");
 
-    await triggerNearbyNotification(list, user_room);
+    await triggerNearbyNotification(visibleList, user_room);
 
-    syncQuickFilters(list, query);
+    syncQuickFilters(visibleList, query);
 
     objectsBody.querySelectorAll(".object-row").forEach((row) => {
       row.addEventListener("click", () => openObjectDecision(row));

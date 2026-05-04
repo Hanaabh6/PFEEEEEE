@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-key="login_doc_title">Connexion – IntelliBuild</title>
+  <title data-key="login_doc_title">Connexion - IntelliBuild</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="theme.css">
   <script data-theme-role-script>
@@ -14,9 +14,9 @@
 
       var role = (localStorage.getItem('userRole') || '').toLowerCase();
       if (!role) {
-        if (page.indexOf('admin') >= 0 || ['index','ajouter-objet','objets','localisations','parametres'].indexOf(page) >= 0) {
+        if (page.indexOf('admin') >= 0 || ['index', 'ajouter-objet', 'objets', 'localisations', 'parametres'].indexOf(page) >= 0) {
           role = 'admin';
-        } else if (page.indexOf('user') >= 0 || ['user','mesobjet','localisations-user','parametres-user'].indexOf(page) >= 0) {
+        } else if (page.indexOf('user') >= 0 || ['user', 'mesobjet', 'localisations-user', 'parametres-user'].indexOf(page) >= 0) {
           role = 'user';
         } else {
           role = 'guest';
@@ -24,7 +24,8 @@
       }
       document.documentElement.setAttribute('data-role', role);
     })();
-  </script></head>
+  </script>
+</head>
 <body class="auth-page">
 
 <header class="topbar">
@@ -44,45 +45,43 @@
   </div>
 </header>
 
-<section class="auth-container">
+<section class="auth-container auth-container--login">
   <div class="auth-showcase" aria-hidden="true">
-    <div class="auth-showcase-card">
-      <span class="showcase-kicker">Plateforme Smart Building</span>
-      <h3>Un cockpit plus élégant pour gérer vos objets connectés.</h3>
-      <p>Connectez-vous à une interface pensée pour aller plus vite, mieux voir et agir sans friction.</p>
+    <div class="auth-showcase-card auth-showcase-card--login">
+      <span class="showcase-kicker" data-key="login_showcase_kicker">Smart Building</span>
+      <h3 data-key="login_showcase_title">Une connexion plus claire pour piloter vos objets, vos espaces et vos actions.</h3>
+      <p data-key="login_showcase_text">Retrouvez un parcours plus fluide, plus professionnel et coherent avec l'univers IntelliBuild.</p>
       <div class="showcase-grid">
-        <div class="showcase-item">
-          <strong>Dashboard</strong>
-          <span>clair et impactant</span>
-        </div>
-        <div class="showcase-item">
-          <strong>Recherche</strong>
-          <span>plus rapide</span>
-        </div>
-        <div class="showcase-item">
-          <strong>Parcours</strong>
-          <span>plus fluide</span>
-        </div>
+       
+        
       </div>
     </div>
   </div>
 
-  <div class="auth-box">
-    <h2 data-key="login_title">Connexion</h2>
-    <p data-key="login_sub">Accédez à votre plateforme Smart Building</p>
+  <div class="auth-box auth-box--login">
+    <div class="auth-intro">
+   
+      <h2 data-key="login_title">Bienvenue</h2>
+      <p data-key="login_sub">Bienvenue a votre plateforme Smart Building</p>
+    </div>
 
-    <form id="loginForm">
+    
+
+    <form id="loginForm" class="auth-form">
       <label data-key="label_email">Email</label>
-      <input id="loginEmail" type="email" placeholder="exemple@mail.com" data-key="ph_email" data-attr="placeholder" required>
+      <input id="loginEmail" type="email" inputmode="email" autocomplete="email" placeholder="exemple@mail.com" data-key="ph_email" data-attr="placeholder" required>
 
       <label data-key="label_password">Mot de passe</label>
-      <input id="loginPassword" type="password" placeholder="••••••••" data-key="ph_password" data-attr="placeholder" required>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" data-key="ph_password" data-attr="placeholder" required>
 
       <button type="submit" class="login-btn" data-key="btn_signin">Se connecter</button>
-      <button type="button" class="forgot-btn" id="forgotBtn" data-key="forgot_password">Mot de passe oublié ?</button>
+
+      <div class="auth-form-links">
+        <button type="button" class="forgot-btn" id="forgotBtn" data-key="forgot_password">Mot de passe oublie ?</button>
+        <div class="auth-register-line" data-html="true" data-key="auth_link_register_inline">Pas de compte ? <a href="register.html">S'inscrire</a></div>
+      </div>
     </form>
   </div>
-  
 </section>
 
 <footer class="site-footer">
@@ -112,64 +111,66 @@
     const email = (field.value || prompt('Entrez votre email pour reinitialiser le mot de passe:') || '').trim();
     if (!email) return;
     try {
-      // Redirige toujours vers la page frontend dediee au changement de mot de passe.
       const redirect = `${window.APP_CONFIG.API_BASE.replace(/\/+$/, '')}/reset.html`;
-      const { error } = await client.auth.resetPasswordForEmail(email, {
+      const result = await client.auth.resetPasswordForEmail(email, {
         redirectTo: redirect
       });
-      if (error) {
-        alert('Erreur: ' + (error.message || 'Impossible d\'envoyer l\'email'));
+      if (result.error) {
+        alert("Erreur: " + (result.error.message || "Impossible d'envoyer l'email"));
         return;
       }
-      alert('Email de réinitialisation envoyé. Vérifie ta boîte mail.');
+      alert('Email de reinitialisation envoye. Verifiez votre boite mail.');
     } catch (err) {
       console.error('Erreur resetPasswordForEmail:', err);
-      alert('Erreur lors de l\'envoi de l\'email.');
+      alert("Erreur lors de l'envoi de l'email.");
     }
   });
 
-    document.getElementById('loginForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
 
-        try {
-          const response = await fetch(`${apiBase}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+    try {
+      const response = await fetch(`${apiBase}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
 
-            const result = await response.json();
+      const result = await response.json();
 
-            if (response.ok) {
-                const token = result.access_token || (result.session && result.session.access_token);
-              const nextUserId = String(result.user_id || "").trim();
-              const previousUserId = String(localStorage.getItem('userId') || "").trim();
-              const role = result.role || "user";
-                localStorage.setItem('userToken', token);
-              localStorage.setItem('userRole', role);
-              localStorage.setItem('userEmail', result.email || email);
-              if (nextUserId) {
-                localStorage.setItem('userId', nextUserId);
-                if (previousUserId !== nextUserId) {
-                  const scopedFavorites = localStorage.getItem(`userFavorites:${nextUserId}`);
-                  localStorage.setItem('userFavoritesOwner', nextUserId);
-                  localStorage.setItem('userFavorites', scopedFavorites || '[]');
-                }
-              }
-              if (role === "admin") {
-                window.location.href = "index.html";
-              } else {
-                window.location.href = "user.html";
-              }
-            } else {
-                alert("Erreur : " + (result.detail || "Identifiants incorrects"));
-            }
-        } catch (error) {
-            alert("Erreur de connexion au serveur.");
+      if (response.ok) {
+        const token = result.access_token || (result.session && result.session.access_token);
+        const nextUserId = String(result.user_id || '').trim();
+        const previousUserId = String(localStorage.getItem('userId') || '').trim();
+        const role = result.role || 'user';
+
+        localStorage.setItem('userToken', token);
+        localStorage.setItem('userRole', role);
+        localStorage.setItem('userEmail', result.email || email);
+
+        if (nextUserId) {
+          localStorage.setItem('userId', nextUserId);
+          if (previousUserId !== nextUserId) {
+            const scopedFavorites = localStorage.getItem(`userFavorites:${nextUserId}`);
+            localStorage.setItem('userFavoritesOwner', nextUserId);
+            localStorage.setItem('userFavorites', scopedFavorites || '[]');
+          }
         }
-    });
+
+        if (role === 'admin') {
+          window.location.href = 'index.html';
+        } else {
+          window.location.href = 'user.html';
+        }
+      } else {
+        alert('Erreur : ' + (result.detail || 'Identifiants incorrects'));
+      }
+    } catch (_error) {
+      alert('Erreur de connexion au serveur.');
+    }
+  });
 </script>
 </body>
 </html>
