@@ -31,7 +31,20 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
                 localStorage.removeItem("userDisplayName");
             }
 
-            // 2. REDIRECTION LOGIQUE
+            // 2. Charger la localisation de l'utilisateur
+            if (data.localisation && typeof data.localisation === "object") {
+                localStorage.setItem("user_room", String(data.localisation.room || ""));
+                localStorage.setItem("user_x", String(data.localisation.x || 0));
+                localStorage.setItem("user_y", String(data.localisation.y || 0));
+                localStorage.setItem("user_z", String(data.localisation.z || 0));
+            } else {
+                localStorage.removeItem("user_room");
+                localStorage.removeItem("user_x");
+                localStorage.removeItem("user_y");
+                localStorage.removeItem("user_z");
+            }
+
+            // 3. REDIRECTION LOGIQUE
             // Si c'est un admin -> index.html (Gestion complète)
             // Sinon (user) -> user.html
             if (data.role === "admin") {

@@ -1093,10 +1093,36 @@ async function applyQuickUserPosition() {
   const selectedRoom = canonicalRoomFromCache(selectedRoomRaw) || selectedRoomRaw;
   const selectedCoords = getCoordsFromCache(selectedRoom) || { x: 0, y: 0, z: 0 };
 
+  // Sauvegarder localement
   localStorage.setItem("user_room", selectedRoom);
   localStorage.setItem("user_x", String(Number(selectedCoords.x || 0)));
   localStorage.setItem("user_y", String(Number(selectedCoords.y || 0)));
   localStorage.setItem("user_z", String(Number(selectedCoords.z || 0)));
+
+  // Appeler le backend pour sauvegarder en base
+  try {
+    const response = await fetch(`${apiBase}/user-localisation`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        room: selectedRoom,
+        x: Number(selectedCoords.x || 0),
+        y: Number(selectedCoords.y || 0),
+        z: Number(selectedCoords.z || 0)
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.error("Erreur update localisation:", error);
+      showAppToast("Erreur lors de la sauvegarde en base.", "error", "Position");
+      return;
+    }
+  } catch (error) {
+    console.error("Erreur reseau localisation:", error);
+    showAppToast("Erreur reseau lors de la mise à jour.", "error", "Position");
+    return;
+  }
 
   if (userCurrentPos) {
     userCurrentPos.textContent = selectedRoom;

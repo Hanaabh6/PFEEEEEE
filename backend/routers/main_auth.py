@@ -240,11 +240,13 @@ def login(data: LoginRequest = Body(...)):
 
         user_role = "user"
         display_name = _display_name_from_profile(email)
+        user_localisation = None
         try:
             query = supabase.table("utilisateur").select("*").eq("id", auth_res.user.id).maybe_single().execute()
             if query.data:
                 user_role = query.data.get("role", "user")
                 display_name = _display_name_from_profile(email, query.data)
+                user_localisation = query.data.get("localisation")
         except Exception as e:
             print(f"Erreur lecture role: {e}")
 
@@ -266,6 +268,7 @@ def login(data: LoginRequest = Body(...)):
             "role": user_role,
             "email": email,
             "display_name": display_name,
+            "localisation": user_localisation,
         }
     except HTTPException:
         raise
@@ -287,6 +290,7 @@ def signup(data: SignupRequest = Body(...)):
                 "id": res.user.id,
                 "email": email,
                 "role": "user",
+                "localisation": None,
             }).execute()
             return {"success": True, "message": "Compte cree"}
 
@@ -735,3 +739,42 @@ def remove_favorite(thing_id: str, request: Request):
         print(f"Erreur delete favorite: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail="Erreur suppression favori")
+
+
+class UpdateUserLocalisationRequest(BaseModel):
+    room: str = Field(..., min_length=1, max_length=120)
+    x: float = Field(...)
+    y: float = Field(...)
+    z: float = Field(...)
+
+
+@auth_router.put("/user-localisation")
+def update_user_localisation(request: Request, data: UpdateUserLocalisationRequest = Body(...)):
+    """Mettre à jour la localisation (position) de l'utilisateur dans Supabase"""
+    user = _get_authenticated_user(request)
+    user_id = str(user.id)
+    
+    room = str(data.room or "").strip()
+    if not room:
+        raise HTTPException(status_code=400, detail="Salle manquante")
+    
+    try:
+        x = float(data.x or 0)
+        y = float(data.y or 0)
+        z = float(data.z or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Coordonnées invalides")
+    
+    localisation = {
+        "room": room,
+        "x": x,
+        "y": y,
+        "z": z
+    }
+    
+    try:
+        supabase.table("utilisateur").update({"localisation": localisation}).eq("id", user_id).execute()
+        return {"success": True, "localisation": localisation}
+    except Exception as e:
+        print(f"Erreur update localisation: {e}")
+        raise HTTPException(status_code=500, detail="Erreur mise à jour localisation")
