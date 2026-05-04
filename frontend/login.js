@@ -17,6 +17,17 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
         const data = await res.json();
 
         if (res.ok) {
+            // 0. NETTOYER COMPLÈTEMENT localStorage avant de stocker les nouvelles données
+            localStorage.removeItem("user_room");
+            localStorage.removeItem("user_x");
+            localStorage.removeItem("user_y");
+            localStorage.removeItem("user_z");
+            localStorage.removeItem("userToken");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("userDisplayName");
+            
             // 1. On stocke le rôle et le token pour les utiliser plus tard
             localStorage.setItem("userRole", data.role);
             localStorage.setItem("userToken", data.access_token);

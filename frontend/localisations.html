@@ -723,7 +723,7 @@
             }
         }
 
-        function setMyPos(room) {
+        async function setMyPos(room) {
             room = canonicalRoomLabel(room) || room;
             localStorage.setItem('user_room', room);
             const coords = ROOM_COORDS[room] || { x: 0, y: 0, z: 0 };
@@ -731,6 +731,26 @@
             localStorage.setItem('user_y', String(coords.y));
             localStorage.setItem('user_z', String(coords.z));
             updateCurrentRoomDisplays(room);
+            
+            // Persist to backend
+            try {
+                const response = await fetch(`${window.APP_CONFIG.API_BASE}/user-localisation`, {
+                    method: 'PUT',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        room: room,
+                        x: Number(coords.x || 0),
+                        y: Number(coords.y || 0),
+                        z: Number(coords.z || 0)
+                    })
+                });
+                if (!response.ok) {
+                    console.error('Erreur sauvegarde localisation backend:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Erreur reseau localisation:', error);
+            }
+            
             showPosToast(`Localisation mise a jour: ${room}`);
         }
 
@@ -1190,10 +1210,10 @@
             quickFloorSelect.addEventListener('change', function () {
                 updateQuickRoomOptions('');
             });
-            quickSetPositionBtn.addEventListener('click', function () {
+            quickSetPositionBtn.addEventListener('click', async function () {
                 const selectedRoom = String(quickRoomSelect.value || '').trim();
                 if (!selectedRoom) return;
-                setMyPos(selectedRoom);
+                await setMyPos(selectedRoom);
             });
             quickGoFloorBtn.addEventListener('click', function () {
                 const selectedFloor = String(quickFloorSelect.value || '').trim();

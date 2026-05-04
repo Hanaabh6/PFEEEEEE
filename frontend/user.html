@@ -1643,6 +1643,19 @@ async function loadUserProfile() {
     localStorage.setItem("userRole", "user");
     localStorage.setItem("userEmail", email);
 
+    // Toujours synchroniser la localisation depuis le backend pour eviter un cache d'une autre session.
+    if (profile.localisation && typeof profile.localisation === "object") {
+      localStorage.setItem("user_room", String(profile.localisation.room || ""));
+      localStorage.setItem("user_x", String(profile.localisation.x || 0));
+      localStorage.setItem("user_y", String(profile.localisation.y || 0));
+      localStorage.setItem("user_z", String(profile.localisation.z || 0));
+    } else {
+      localStorage.removeItem("user_room");
+      localStorage.removeItem("user_x");
+      localStorage.removeItem("user_y");
+      localStorage.removeItem("user_z");
+    }
+
     applyDisplayName(displayName);
     if (window.refreshSidebarProfileCards) {
       window.refreshSidebarProfileCards(profile);
@@ -2690,6 +2703,10 @@ if (openProfileOverlay) {
         localStorage.removeItem("userEmail");
         localStorage.removeItem("userId");
         localStorage.removeItem("userDisplayName");
+        localStorage.removeItem("user_room");
+        localStorage.removeItem("user_x");
+        localStorage.removeItem("user_y");
+        localStorage.removeItem("user_z");
         window.location.href = "login.html";
       });
     }
@@ -2707,6 +2724,10 @@ if (logoutLink) {
     localStorage.removeItem("userEmail");
     localStorage.removeItem("userId");
     localStorage.removeItem("userDisplayName");
+    localStorage.removeItem("user_room");
+    localStorage.removeItem("user_x");
+    localStorage.removeItem("user_y");
+    localStorage.removeItem("user_z");
     window.location.href = "login.html";
   });
 }

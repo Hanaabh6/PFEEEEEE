@@ -426,6 +426,19 @@
                 localStorage.setItem("userEmail", email);
                 localStorage.setItem(PROFILE_NAME_KEY, displayName);
 
+                    // RECHARGER la localisation depuis le backend pour éviter le cache cross-user
+                    if (profile.localisation && typeof profile.localisation === "object") {
+                        localStorage.setItem("user_room", String(profile.localisation.room || ""));
+                        localStorage.setItem("user_x", String(profile.localisation.x || 0));
+                        localStorage.setItem("user_y", String(profile.localisation.y || 0));
+                        localStorage.setItem("user_z", String(profile.localisation.z || 0));
+                    } else {
+                        localStorage.removeItem("user_room");
+                        localStorage.removeItem("user_x");
+                        localStorage.removeItem("user_y");
+                        localStorage.removeItem("user_z");
+                    }
+
                 menuName.textContent = displayName;
                 profileButton.textContent = (displayName[0] || "U").toUpperCase();
                 if (window.refreshSidebarProfileCards) {
@@ -789,7 +802,7 @@
             }, 1800);
         }
 
-        function setMyPos(room) {
+        async function setMyPos(room) {
             room = canonicalRoomLabel(room) || room;
             localStorage.setItem('user_room', room);
             const coords = ROOM_COORDS[room] || { x: 0, y: 0, z: 0 };
@@ -797,6 +810,26 @@
             localStorage.setItem('user_y', String(coords.y));
             localStorage.setItem('user_z', String(coords.z));
             updateCurrentRoomDisplays(room);
+            
+            // Persist to backend
+            try {
+                const response = await fetch(`${apiBase}/user-localisation`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        room: room,
+                        x: Number(coords.x || 0),
+                        y: Number(coords.y || 0),
+                        z: Number(coords.z || 0)
+                    })
+                });
+                if (!response.ok) {
+                    console.error('Erreur sauvegarde localisation backend:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Erreur reseau localisation:', error);
+            }
+            
             showPosToast(`Localisation mise a jour: ${room}`);
         }
 
@@ -1224,6 +1257,9 @@
         }
 
         async function init() {
+            // Charger le profil d'abord pour vérifier l'authentification et obtenir la position depuis le backend
+            await loadUserProfile();
+            
             await loadLayoutData();
             ensureRoomCoordinates();
             const container = document.getElementById('floorContainer');
@@ -1236,6 +1272,7 @@
                 </div>
             `).join('');
             ARCHI_DATA.forEach(f => createFloor3D(`canvas-${f.id}`, f.rooms, f.color));
+            // Charger la position depuis localStorage (mise à jour par login.js ou setMyPos)
             const currentRoom = canonicalRoomLabel(localStorage.getItem('user_room') || "") || "Non definie";
             if (currentRoom && currentRoom !== 'Non definie') {
                 localStorage.setItem('user_room', currentRoom);
@@ -1246,10 +1283,10 @@
             quickFloorSelect.addEventListener('change', function () {
                 updateQuickRoomOptions('');
             });
-            quickSetPositionBtn.addEventListener('click', function () {
+            quickSetPositionBtn.addEventListener('click', async function () {
                 const selectedRoom = String(quickRoomSelect.value || '').trim();
                 if (!selectedRoom) return;
-                setMyPos(selectedRoom);
+                await setMyPos(selectedRoom);
             });
             quickGoFloorBtn.addEventListener('click', function () {
                 const selectedFloor = String(quickFloorSelect.value || '').trim();
@@ -1261,8 +1298,6 @@
                     restoreAllFloors();
                 });
             }
-            
-            loadUserProfile();
         }
 
         window.onload = function () { init(); };
