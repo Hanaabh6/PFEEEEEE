@@ -819,7 +819,7 @@ body.auth-page .topbar {
 .auth-page {
   background:
     linear-gradient(128deg, rgba(8, 17, 31, 0.84), rgba(8, 17, 31, 0.56) 50%, rgba(12, 74, 78, 0.36)),
-    url("https://images.unsplash.com/photo-1497366216548-37526070297c") center/cover no-repeat fixed !important;
+    url("https://images.pexels.com/photos/13551578/pexels-photo-13551578.jpeg") center/cover no-repeat fixed !important;
 }
 
 .auth-container {
@@ -829,6 +829,17 @@ body.auth-page .topbar {
   gap: 28px;
   align-items: center;
   padding: 150px 30px 90px;
+}
+
+html[data-page="login"] .auth-container {
+  grid-template-columns: 460px 460px;
+  justify-content: center;
+  gap: 32px;
+}
+
+html[data-page="login"] .auth-showcase {
+  width: 460px;
+  align-self: center;
 }
 
 .auth-showcase {
@@ -913,6 +924,7 @@ body.auth-page .topbar {
 .auth-box h2 {
   font-size: clamp(2rem, 4vw, 2.7rem);
   margin-bottom: 12px;
+  color: #00b894;
 }
 
 .auth-box p {
@@ -992,8 +1004,16 @@ select:focus {
   font-size: 0.92rem;
 }
 
-.auth-link a {
-  color: var(--accent-strong);
+.auth-link a,
+.auth-register-line a {
+  color: var(--accent-strong) !important;
+  font-weight: 800;
+}
+
+.auth-link a:hover,
+.auth-register-line a:hover {
+  color: var(--accent) !important;
+  text-decoration: underline;
 }
 
 html[data-page="login"] .auth-showcase-card--login {
@@ -1117,21 +1137,25 @@ html[data-page="login"] .auth-box--login label {
 
 html[data-page="login"] .auth-register-line {
   width: 100%;
-  text-align: start;
+  text-align: center;
   color: var(--ink-700);
   font-size: 0.95rem;
   font-weight: 700;
 }
 
 html[data-page="login"] .auth-register-line a {
-  color: var(--accent);
+  color: var(--ink-900) !important;
   font-weight: 800;
   text-decoration: none;
 }
 
 html[data-page="login"] .auth-register-line a:hover {
-  color: var(--accent-strong);
+  color: var(--accent) !important;
   text-decoration: underline;
+}
+
+html[data-page="register"] .auth-box h2 {
+  color: var(--accent-strong) !important;
 }
 
 html[data-page="login"] .forgot-btn {

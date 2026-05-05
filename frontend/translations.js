@@ -1404,14 +1404,16 @@ reset_error_update: "تعذر تحديث كلمة المرور.",
     }
   };
 
-  Object.assign(translations.fr, {
-    login_doc_title: "Bienvenue - IntelliBuild",
-    login_title: "Bienvenue",
-    login_sub: "Bienvenue a votre plateforme Smart Building",
+Object.assign(translations.fr, {
+    login_doc_title: "Connexion - IntelliBuild",
+    login_title: "Connexion",
+    login_sub: "Renseignez vos identifiants pour accéder à votre espace IntelliBuild",
     login_welcome_eyebrow: "Bienvenue",
     login_showcase_kicker: "Smart Building",
-    login_showcase_title: "Une connexion plus claire pour piloter vos objets, vos espaces et vos actions.",
-    login_showcase_text: "Retrouvez un parcours plus fluide, plus professionnel et coherent avec l'univers IntelliBuild.",
+login_showcase_title: "Bienvenue sur IntelliBuild",
+login_showcase_text_1: "Ravi de vous revoir",
+    login_showcase_text_2: "Connectez-vous pour continuer.",
+    login_showcase_text: "Ravi de vous revoir. Connectez-vous pour continuer.",
     login_showcase_item_1_title: "Dashboard",
     login_showcase_item_1_text: "clair et rassurant",
     login_showcase_item_2_title: "Objets",
