@@ -6,17 +6,17 @@
 
     var style = document.createElement("style");
     style.id = "ib-sidebar-style";
-    style.textContent =
-      ".ib-sidebar{width:280px !important;min-height:100vh !important;flex:0 0 280px !important;background:rgba(0,0,0,0.92) !important;color:#ffffff !important;padding:24px !important;display:flex !important;flex-direction:column !important;justify-content:space-between !important;gap:24px !important;box-shadow:0 24px 50px rgba(2,6,23,0.45) !important;font-family:'Segoe UI',sans-serif !important;}" +
-      ".ib-sidebar .sidebar-logo,.ib-sidebar .logo{display:flex;align-items:center;gap:10px;color:#fff;margin-bottom:18px;}" +
-      ".ib-sidebar .sidebar-logo img,.ib-sidebar .logo img{width:40px;height:40px;border-radius:999px;object-fit:contain;}" +
-      ".ib-sidebar .logo h2,.ib-sidebar .sidebar-logo h2{margin:0;font-size:26px;font-weight:700;}" +
-      ".ib-sidebar nav,.ib-sidebar #sideNav,.ib-sidebar .sidebar-nav{display:flex !important;flex-direction:column !important;gap:0 !important;margin-top:0 !important;}" +
-      ".ib-sidebar nav a,.ib-sidebar #sideNav a,.ib-sidebar .sidebar-nav a{display:flex !important;align-items:center !important;gap:10px !important;padding:13px 14px !important;margin:10px 0 !important;border-radius:10px !important;text-decoration:none !important;color:#d1d5db !important;font-size:16px !important;font-weight:600 !important;white-space:nowrap !important;transition:background 0.25s ease,color 0.25s ease,box-shadow 0.25s ease !important;}" +
-      ".ib-sidebar nav a i,.ib-sidebar #sideNav a i,.ib-sidebar .sidebar-nav a i{width:18px;min-width:18px;text-align:center;}" +
-      ".ib-sidebar nav a span,.ib-sidebar #sideNav a span,.ib-sidebar .sidebar-nav a span{white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;min-width:0 !important;}" +
-      ".ib-sidebar nav a:hover,.ib-sidebar #sideNav a:hover,.ib-sidebar .sidebar-nav a:hover{background:#1f2937;color:#ffffff;}" +
-      ".ib-sidebar nav a.nav-active,.ib-sidebar #sideNav a.nav-active,.ib-sidebar .sidebar-nav a.nav-active,.ib-sidebar nav a.active,.ib-sidebar #sideNav a.active,.ib-sidebar .sidebar-nav a.active{background:#047857;color:#ffffff;box-shadow:inset 0 0 0 1px rgba(16,185,129,0.45);}" +
+    style.textContent = ""
+      + ".sidebar-profile-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;margin:12px 0 10px;border-radius:20px;text-decoration:none;color:#fff;background:linear-gradient(180deg,rgba(71,85,105,.42),rgba(30,41,59,.78));border:1px solid rgba(255,255,255,.16);box-shadow:0 12px 20px rgba(2,6,23,.18),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(12px);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}"
+      + ".sidebar-profile-card:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.24);box-shadow:0 16px 26px rgba(2,6,23,.22),inset 0 1px 0 rgba(255,255,255,.1)}"
+      + ".sidebar-profile-avatar{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;background:linear-gradient(135deg,#8fd3ff,#60a5fa);color:#0f172a;font-size:15px;font-weight:900;box-shadow:inset 0 0 0 3px rgba(255,255,255,.22)}"
+      + ".sidebar-profile-copy{display:grid;gap:2px;min-width:0}"
+      + ".sidebar-profile-name{font-size:14px;font-weight:800;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}"
+      + ".sidebar-profile-role{font-size:12px;font-weight:600;line-height:1.2;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+      + ".sidebar-profile-action{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.9);font-size:14px}"
+      + ".sidebar-profile-card:focus-visible{outline:2px solid rgba(125,211,252,.92);outline-offset:3px}"
+      + ".sidebar-profile-compact .sidebar-profile-card{margin:12px 0 10px}"
+      + "@media (max-width:1080px){.sidebar-profile-card{margin:12px 0 10px}}";
       ".ib-sidebar .sidebar-bottom{display:grid;gap:12px;}" +
       ".ib-sidebar .lang{background:rgba(255,255,255,0.08);padding:10px;border-radius:10px;}" +
       ".ib-sidebar .lang-title{margin-bottom:8px;font-size:13px;font-weight:700;}" +

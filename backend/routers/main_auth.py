@@ -227,6 +227,90 @@ def _format_history_date(raw_date: str, raw_created_at: str) -> str:
         return created_value
 
 
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _pick_profile_update_value(row: dict) -> str:
+    if not isinstance(row, dict):
+        return "-"
+
+    candidates = [
+        row.get("profile_updated_at"),
+        row.get("last_profile_update"),
+        row.get("updated_at"),
+        row.get("modified_at"),
+        row.get("updatedAt"),
+        row.get("created_at"),
+    ]
+    for candidate in candidates:
+        candidate_text = str(candidate or "").strip()
+        if candidate_text:
+            return candidate_text
+    return "-"
+
+
+def _is_report_history_entry(row: dict) -> bool:
+    if not isinstance(row, dict):
+        return False
+    action = str(row.get("action", "") or "").lower()
+    detail = str(row.get("detail", "") or "").lower()
+    haystack = f"{action} {detail}"
+    return any(token in haystack for token in ("signal", "report", "probl", "incident", "alerte"))
+
+
+def _summarize_user_history(rows: list[dict]) -> dict[str, dict]:
+    summary: dict[str, dict] = {}
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+
+        user_id = str(row.get("user_id", "") or "").strip()
+        if not user_id:
+            continue
+
+        bucket = summary.setdefault(
+            user_id,
+            {
+                "history_count": 0,
+                "last_activity": "-",
+                "last_activity_raw": "",
+                "report_count": 0,
+                "report_items": [],
+            },
+        )
+
+        bucket["history_count"] += 1
+
+        created_at = str(row.get("created_at", "") or "").strip()
+        if not bucket["last_activity_raw"]:
+            bucket["last_activity_raw"] = created_at
+            bucket["last_activity"] = _format_history_date(str(row.get("date", "") or ""), created_at)
+
+        if _is_report_history_entry(row):
+            bucket["report_count"] += 1
+            if len(bucket["report_items"]) < 10:
+                bucket["report_items"].append(
+                    {
+                        "date": _format_history_date(str(row.get("date", "") or ""), created_at),
+                        "action": str(row.get("action", "") or "").strip(),
+                        "detail": str(row.get("detail", "") or "").strip(),
+                        "status": str(row.get("status", "") or "").strip(),
+                        "thing_id": str(row.get("thing_id", "") or "").strip(),
+                        "thing_name": str(row.get("thing_name", "") or "").strip(),
+                    }
+                )
+
+    return summary
+
+
 @auth_router.post("/login")
 def login(data: LoginRequest = Body(...)):
     email = data.email.strip().lower()
@@ -380,18 +464,69 @@ def add_user_history(request: Request, data: UserHistoryRequest = Body(...)):
 @auth_router.get("/admin/users")
 def get_admin_users(request: Request):
     require_admin(request)
-    rows = supabase.table("utilisateur").select("id,email,role").execute()
+    rows = supabase.table("utilisateur").select("*").execute()
     data = rows.data if rows and isinstance(rows.data, list) else []
-    return [
-        {
-            "id": str(item.get("id", "")),
-            "email": str(item.get("email", "") or ""),
-            "role": str(item.get("role", "user") or "user"),
-            "display_name": _display_name_from_profile(str(item.get("email", "") or ""), item),
-        }
-        for item in data
-        if item.get("id")
-    ]
+    user_ids = [str(item.get("id", "") or "").strip() for item in data if isinstance(item, dict) and item.get("id")]
+
+    history_summary: dict[str, dict] = {}
+    if user_ids:
+        try:
+            history_rows = list(
+                user_history_collection.find(
+                    {"user_id": {"$in": user_ids}},
+                    {
+                        "_id": 0,
+                        "user_id": 1,
+                        "action": 1,
+                        "detail": 1,
+                        "status": 1,
+                        "date": 1,
+                        "created_at": 1,
+                        "thing_id": 1,
+                        "thing_name": 1,
+                    },
+                ).sort("created_at", -1)
+            )
+            history_summary = _summarize_user_history(history_rows)
+        except Exception as e:
+            print(f"Erreur lecture historique admin users: {e}")
+            history_summary = {}
+
+    result = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        user_id = str(item.get("id", "") or "").strip()
+        if not user_id:
+            continue
+
+        favorites_raw = item.get("favorites", [])
+        favorites = _normalize_favorites(favorites_raw if isinstance(favorites_raw, list) else [])
+        history_info = history_summary.get(user_id, {})
+        last_profile_update = _pick_profile_update_value(item)
+
+        result.append(
+            {
+                "id": user_id,
+                "email": str(item.get("email", "") or ""),
+                "role": str(item.get("role", "user") or "user"),
+                "display_name": _display_name_from_profile(str(item.get("email", "") or ""), item),
+                "favorites_count": len(favorites),
+                "favorites": favorites,
+                "history_count": int(history_info.get("history_count", 0) or 0),
+                "report_count": int(history_info.get("report_count", 0) or 0),
+                "report_items": history_info.get("report_items", []),
+                "last_activity": str(history_info.get("last_activity", "-") or "-"),
+                "last_profile_update": last_profile_update,
+                "updated_at": str(item.get("updated_at", "") or ""),
+                "created_at": str(item.get("created_at", "") or ""),
+                "email_confirmed_at": str(item.get("email_confirmed_at", "") or ""),
+                "last_sign_in_at": str(item.get("last_sign_in_at", "") or ""),
+            }
+        )
+
+    return result
 
 
 @auth_router.get("/admin/user-activity")
@@ -553,6 +688,12 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
     
     try:
         profile_row = _get_user_profile_row(user_id)
+        timestamp_fields = ["profile_updated_at", "last_profile_update", "updated_at", "modified_at", "updatedAt"]
+        profile_update_timestamp = datetime.now(timezone.utc).isoformat()
+        update_payload = {"display_name": display_name}
+        for field_name in timestamp_fields:
+            if isinstance(profile_row, dict) and field_name in profile_row:
+                update_payload[field_name] = profile_update_timestamp
 
         # Vérification robuste sans maybe_single(), qui peut lever une erreur si plusieurs lignes matchent.
         existing = supabase.table("utilisateur").select("id,display_name").eq("display_name", display_name).execute()
@@ -571,7 +712,7 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
 
         print(f"[PATCH /user/display-name] Calling Supabase update...")
         if profile_row:
-            result = supabase.table("utilisateur").update({"display_name": display_name}).eq("id", user_id).execute()
+            result = supabase.table("utilisateur").update(update_payload).eq("id", user_id).execute()
         else:
             print(f"[PATCH /user/display-name] Missing profile row, creating it...")
             result = supabase.table("utilisateur").insert({
@@ -579,6 +720,7 @@ def update_display_name(request: Request, data: UpdateDisplayNameRequest = Body(
                 "email": user_email,
                 "role": "user",
                 "display_name": display_name,
+                "updated_at": profile_update_timestamp,
             }).execute()
         print(f"[PATCH /user/display-name] Supabase result: {result}")
         

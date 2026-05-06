@@ -28,6 +28,7 @@
       // Navigation
       nav_home: "Accueil",
       nav_dashboard: "Dashboard",
+      nav_users: "Utilisateurs",
       nav_add: "Ajouter",
       nav_objects: "Objets",
       nav_my_objects: "Mes objets",
@@ -495,6 +496,7 @@ reset_error_update: "Impossible de mettre à jour le mot de passe.",
       // Navigation
       nav_home: "Home",
       nav_dashboard: "Dashboard",
+      nav_users: "Users",
       nav_add: "Add",
       nav_objects: "Objects",
       nav_my_objects: "My objects",
@@ -962,6 +964,7 @@ reset_error_update: "Unable to update password.",
       // Navigation
       nav_home: "الرئيسية",
       nav_dashboard: "لوحة التحكم",
+      nav_users: "المستخدمون",
       nav_add: "إضافة",
       nav_objects: "الأجهزة",
       nav_my_objects: "أجهزتي",

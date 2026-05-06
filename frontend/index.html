@@ -31,6 +31,42 @@
         .role-item{background:rgba(255,255,255,0.85);border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:12px}
         .role-item h4{margin:0 0 6px;font-size:14px;color:#0f172a}
         .role-item p{margin:0;font-size:13px;color:#334155}
+            /* Réductions d'espacements pour la sidebar (logo / nom / langue / menu) */
+            .glass-sidebar.admin-sidebar{gap:0.25rem !important;padding-top:12px !important;padding-bottom:12px !important}
+            .glass-sidebar .sidebar-logo{margin-bottom:2px !important;display:flex;align-items:center;gap:6px}
+            .glass-sidebar .sidebar-logo img{height:36px !important;width:36px !important}
+            .glass-sidebar .sidebar-logo [data-key="brand"], .glass-sidebar .sidebar-logo h2{font-size:16px !important;line-height:1}
+            .glass-sidebar .sidebar-lang{margin-top:6px !important}
+            .glass-sidebar .lang-note{margin-top:4px !important;font-size:12px}
+            .glass-sidebar .sidebar-nav{margin-top:6px !important}
+            .glass-sidebar nav a{margin:4px 0 !important;padding:8px 10px !important;gap:8px !important;font-size:14px}
+            .glass-sidebar nav a i{width:18px}
+            .glass-sidebar nav a span{line-height:1}
+            /* Rendre le sélecteur de langue plus lisible (fond clair, texte sombre) */
+            .glass-sidebar .sidebar-lang, .glass-sidebar .lang-select{background:#ffffff !important;color:#0f172a !important;border:1px solid rgba(15,23,42,0.08) !important;padding:6px 8px !important;border-radius:8px}
+            .glass-sidebar .sidebar-lang option, .glass-sidebar .lang-select option{color:#0f172a !important;background:#ffffff !important}
+            /* Afficher fond blanc uniquement quand le select n'est pas activé (avant ouverture) */
+            .glass-sidebar .sidebar-lang:not(:focus), .glass-sidebar .lang-select:not(:focus) {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                box-shadow: none !important;
+                -webkit-appearance: none !important;
+                appearance: none !important;
+            }
+            /* Forcer la couleur du texte du select (couverture vendor-specific) */
+            .glass-sidebar .sidebar-lang, .glass-sidebar .lang-select {
+                color: #0f172a !important;
+                -webkit-text-fill-color: #0f172a !important;
+            }
+            .glass-sidebar .sidebar-lang::-ms-value, .glass-sidebar .lang-select::-ms-value { color: #0f172a !important; }
+            .glass-sidebar .sidebar-lang:-moz-focusring, .glass-sidebar .lang-select:-moz-focusring { color: #0f172a !important; }
+            /* Quand le select est activé (focus/open) : texte blanc sur fond noir */
+            .glass-sidebar .sidebar-lang:focus, .glass-sidebar .lang-select:focus {
+                background: #000 !important;
+                color: #fff !important;
+                -webkit-text-fill-color: #fff !important;
+                box-shadow: none !important;
+            }
     </style>
     <link rel="stylesheet" href="theme.css">
     <script data-theme-role-script>(function(){var p=(window.location.pathname.split('/').pop()||'').toLowerCase();var g=p.replace('.html','')||'home';document.documentElement.setAttribute('data-page',g);var r=(localStorage.getItem('userRole')||'').toLowerCase();if(!r){if(g.indexOf('admin')>=0||['index','ajouter-objet','objets','localisations','parametres'].indexOf(g)>=0)r='admin';else if(g.indexOf('user')>=0||['user','mesobjet','localisations-user','parametres-user'].indexOf(g)>=0)r='user';else r='guest';}document.documentElement.setAttribute('data-role',r);})();</script>
