@@ -65,7 +65,7 @@
 
   function readH(){ try{const r=localStorage.getItem('adminHistory');const p=r?JSON.parse(r):[];return Array.isArray(p)?p:[];}catch{return[];} }
   function writeH(v){ localStorage.setItem('adminHistory',JSON.stringify(v.slice(0,30))); }
-  function addH(a,d,s){ const h=readH(); h.unshift({date:new Date().toLocaleString('fr-FR'),action:a,detail:d,status:s||'Succes'}); writeH(h); const t=localStorage.getItem('userToken'); if(t) fetch(`${apiBase}/user/history`,{method:'POST',headers:authHeaders(),body:JSON.stringify({action:a,detail:d,status:s||'Succes'})}).catch(()=>{}); }
+  function addH(a,d,s){ const t=localStorage.getItem('userToken'); if(t) fetch(`${apiBase}/admin/history`,{method:'POST',headers:authHeaders(),body:JSON.stringify({action:a,detail:d,status:s||'Succes'})}).catch(()=>{}); }
 
   async function loadProfile(){
     try{ const r=await fetch(`${apiBase}/user/profile`,{headers:authHeaders()}); if(!r.ok)return; const p=await r.json(); adminProfileData=p; if(String(p.role||'').toLowerCase()&&String(p.role||'').toLowerCase()!=='admin'){window.location.href='user.html';return;} const em=String(p.email||localStorage.getItem('userEmail')||'admin@intellibuild.com'); const disp=String(localStorage.getItem('adminDisplayName')||'').trim()||String(p.display_name||'').trim()||em.split('@')[0]||'Admin'; localStorage.setItem('userRole','admin'); localStorage.setItem('userEmail',em); localStorage.setItem('adminDisplayName',disp); applyName(disp); }catch(e){console.error('Profil:',e);}
@@ -93,10 +93,9 @@
 
   async function initCharts(){
     const cols=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
-    const scols={active:'#10b981',inactive:'#ef4444',en_utilisation:'#f59e0b',panne:'#f97316',autre:'#94a3b8'};
-    const [bt,bs,tv,tr] = await Promise.all([
+    const [bt,usage,tv,tr] = await Promise.all([
       fetch(`${apiBase}/admin/stats/by-type`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${apiBase}/admin/stats/by-status`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
+      fetch(`${apiBase}/admin/stats/app-usage-daily?days=7`,{headers:authHeaders()}).then(r=>r.ok?r.json():({labels:[],users:[],admins:[]})).catch(()=>({labels:[],users:[],admins:[]})),
       fetch(`${apiBase}/admin/stats/top-viewed?limit=6`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
       fetch(`${apiBase}/admin/stats/top-reported?limit=6`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[])
     ]);
@@ -149,12 +148,23 @@
     const topViewedValues = (tv||[]).map(x=>x.view_count||0).slice(0,6);
     const topReportedLabels = (tr||[]).map(x=>x.thing_name||'Inconnu').slice(0,6);
     const topReportedValues = (tr||[]).map(x=>x.count||0).slice(0,6);
+    const usageLabels = (usage && Array.isArray(usage.labels) ? usage.labels : []).map((d) => {
+      try {
+        const dt = new Date(`${d}T00:00:00`);
+        return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      } catch (e) {
+        return d;
+      }
+    });
+    const usageUsers = usage && Array.isArray(usage.users) ? usage.users.map(v => Number(v) || 0) : [];
+    const usageAdmins = usage && Array.isArray(usage.admins) ? usage.admins.map(v => Number(v) || 0) : [];
+    const usageMax = Math.max(1, ...usageUsers, ...usageAdmins);
 
     setBarChartHeight('chartTopViewed', topViewedLabels.length);
     setBarChartHeight('chartTopReported', topReportedLabels.length);
 
     chartInstances.type=new Chart(document.getElementById('chartByType'),{type:'doughnut',data:{labels:(bt||[]).map(x=>x.type||'Inconnu'),datasets:[{data:(bt||[]).map(x=>x.count||0),backgroundColor:cols,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}},cutout:'65%'}});
-    chartInstances.status=new Chart(document.getElementById('chartByStatus'),{type:'doughnut',data:{labels:(bs||[]).map(x=>x.status||'Inconnu'),datasets:[{data:(bs||[]).map(x=>x.count||0),backgroundColor:(bs||[]).map(x=>scols[x.status]||'#94a3b8'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}},cutout:'65%'}});
+    chartInstances.usageDaily=new Chart(document.getElementById('chartUsageDaily'),{type:'line',data:{labels:usageLabels,datasets:[{label:'Users',data:usageUsers,borderColor:'#2563eb',backgroundColor:'rgba(37, 99, 235, 0.28)',fill:true,tension:0.42,pointRadius:3,pointHoverRadius:5,borderWidth:2.2},{label:'Admins',data:usageAdmins,borderColor:'#f97316',backgroundColor:'rgba(249, 115, 22, 0.28)',fill:true,tension:0.42,pointRadius:3,pointHoverRadius:5,borderWidth:2.2}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,position:'top',labels:{usePointStyle:true,boxWidth:10,font:{size:11,weight:'700'}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,suggestedMax:usageMax,ticks:{precision:0,stepSize:Math.max(1,Math.ceil(usageMax/5))},grid:{color:'rgba(148, 163, 184, 0.2)'}}}}});
     chartInstances.viewed=new Chart(document.getElementById('chartTopViewed'),{type:'bar',data:{labels:topViewedLabels,datasets:[{label:'Vues',data:topViewedValues,backgroundColor:'#10b981',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topViewedValues)});
     chartInstances.reported=new Chart(document.getElementById('chartTopReported'),{type:'bar',data:{labels:topReportedLabels,datasets:[{label:'Signalements',data:topReportedValues,backgroundColor:'#ef4444',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topReportedValues)});
   }
@@ -206,23 +216,16 @@
     openOverlay('Historique','<div class="p-4 text-slate-500">Chargement...</div>');
     (async()=>{
       try{
-        let ah = [];
-        try{
-          const resp = await fetch(`${apiBase}/user/history`,{headers:authHeaders()});
-          if(resp.ok){ ah = await resp.json(); }
-        }catch(e){ ah = []; }
-
-        // If server returned nothing, fallback to localStorage history
-        let source = Array.isArray(ah)?ah.slice() : [];
-        if(!source || source.length===0){ source = readH(); }
-
-        const al=(Array.isArray(source)?source:[]).filter(x=>{const a=String(x&&x.action?x.action:'').toLowerCase();return a.includes('admin')||['utilisateurs','session','profil','navigation'].includes(a);});
+        const resp = await fetch(`${apiBase}/admin/history?limit=200`,{headers:authHeaders()});
+        if(!resp.ok) throw new Error('history_fetch_failed');
+        const ah = await resp.json().catch(()=>[]);
+        const al=Array.isArray(ah)?ah:[];
         const rows = al.length ? al.map(i=>`<tr><td class="p-3 text-sm text-slate-600 whitespace-nowrap">${i.date||'-'}</td><td class="p-3 text-sm font-semibold text-slate-700">${esc(i.action)}</td><td class="p-3 text-sm">${esc(i.detail)}</td><td class="p-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ${String(i.status||'').toLowerCase().includes('succes')?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${esc(i.status||'-')}</span></td></tr>`).join('') : '';
 
         if(rows){
           el.overlayBody.innerHTML=`<div class="glass-main p-6 rounded-3xl shadow-2xl"><h3 class="text-lg font-bold mb-3">Historique admin</h3><table class="w-full text-left"><thead class="text-gray-600 border-b border-gray-300"><tr class="text-[11px] uppercase font-bold tracking-wider"><th class="p-3">Date</th><th class="p-3">Action</th><th class="p-3">Détail</th><th class="p-3">Statut</th></tr></thead><tbody class="divide-y divide-gray-200">${rows}</tbody></table></div>`;
         } else {
-          el.overlayBody.innerHTML=`<div class="glass-main p-6 rounded-3xl shadow-2xl"><h3 class="text-lg font-bold mb-3">Historique admin</h3><div class="p-4 text-slate-500">Aucun historique disponible (ni serveur, ni local).</div></div>`;
+          el.overlayBody.innerHTML=`<div class="glass-main p-6 rounded-3xl shadow-2xl"><h3 class="text-lg font-bold mb-3">Historique admin</h3><div class="p-4 text-slate-500">Aucun historique admin disponible.</div></div>`;
         }
 
       }catch(e){ el.overlayBody.innerHTML='<div class="text-red-600">Erreur chargement historique.</div>'; }

@@ -426,17 +426,21 @@
                 localStorage.setItem("userEmail", email);
                 localStorage.setItem(PROFILE_NAME_KEY, displayName);
 
-                    // RECHARGER la localisation depuis le backend pour éviter le cache cross-user
+                    // Conserver la localisation locale si le backend ne renvoie rien.
                     if (profile.localisation && typeof profile.localisation === "object") {
-                        localStorage.setItem("user_room", String(profile.localisation.room || ""));
-                        localStorage.setItem("user_x", String(profile.localisation.x || 0));
-                        localStorage.setItem("user_y", String(profile.localisation.y || 0));
-                        localStorage.setItem("user_z", String(profile.localisation.z || 0));
-                    } else {
-                        localStorage.removeItem("user_room");
-                        localStorage.removeItem("user_x");
-                        localStorage.removeItem("user_y");
-                        localStorage.removeItem("user_z");
+                        const backendRoom = String(profile.localisation.room || "").trim();
+                        if (backendRoom) {
+                            localStorage.setItem("user_room", backendRoom);
+                        }
+                        if (profile.localisation.x !== undefined && profile.localisation.x !== null) {
+                            localStorage.setItem("user_x", String(profile.localisation.x));
+                        }
+                        if (profile.localisation.y !== undefined && profile.localisation.y !== null) {
+                            localStorage.setItem("user_y", String(profile.localisation.y));
+                        }
+                        if (profile.localisation.z !== undefined && profile.localisation.z !== null) {
+                            localStorage.setItem("user_z", String(profile.localisation.z));
+                        }
                     }
 
                 menuName.textContent = displayName;

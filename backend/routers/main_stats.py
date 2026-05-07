@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, HTTPException, Request
 from typing import Any
 
-from ..base import things_collection, notifications_collection, user_history_collection
+from ..base import things_collection, notifications_collection, user_history_collection, db
 
 stats_router = APIRouter(tags=["stats"])
 
@@ -25,6 +27,69 @@ def _normalize_status(value: str) -> str:
     if v in ("panne", "en panne", "maintenance", "signale"):
         return "panne"
     return "autre"
+
+
+def _is_closed_report_status(status: str) -> bool:
+    value = str(status or "").strip().lower()
+    return any(
+        token in value
+        for token in ("refuse", "rejet", "resolu", "remis en service", "traite")
+    )
+
+
+def _thing_is_still_reported(thing: dict[str, Any] | None) -> bool:
+    item = thing or {}
+    if str(item.get("maintenance_state") or "").strip():
+        return True
+    raw_status = item.get("status") or item.get("availability") or ""
+    return _normalize_status(str(raw_status)) in {"inactive", "panne"}
+
+
+def _build_thing_state_map(thing_ids: list[str]) -> dict[str, dict[str, Any]]:
+    clean_ids = [str(thing_id or "").strip() for thing_id in thing_ids if str(thing_id or "").strip()]
+    if not clean_ids:
+        return {}
+
+    rows = list(
+        things_collection.find(
+            {"id": {"$in": clean_ids}},
+            {
+                "id": 1,
+                "name": 1,
+                "status": 1,
+                "availability": 1,
+                "maintenance_state": 1,
+            },
+        )
+    )
+
+    return {
+        str(row.get("id") or "").strip(): row
+        for row in rows
+        if str(row.get("id") or "").strip()
+    }
+
+
+def _parse_created_at_iso(raw_value: str) -> datetime | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+
+    try:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _normalize_history_action(value: str) -> str:
+    text = str(value or "").strip().lower()
+    if text.startswith("admin -"):
+        text = text.replace("admin -", "", 1).strip()
+    return text
 
 
 @stats_router.get("/admin/stats/overview")
@@ -54,7 +119,7 @@ def get_overview_stats(request: Request):
             ]
         })
         
-        # Objets actuellement empruntés
+        # Objets actuellement empruntÃ©s
         borrowed = things_collection.count_documents({
             "$or": [
                 {"current_borrow": {"$exists": True, "$ne": None}},
@@ -164,65 +229,67 @@ def get_top_viewed(request: Request, limit: int = 10):
 def get_top_reported(request: Request, limit: int = 10):
     _require_authenticated_user(request)
     try:
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        # Option 1: Query user_history_collection for signalements
-        signalements_pipeline = [
-            {"$match": {"action": "SIGNALEMENT_OBJET"}},
-            {"$group": {
-                "_id": "$thing_id",
-                "thing_name": {"$first": "$thing_name"},
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}},
-            {"$limit": limit}
+        reports = list(
+            user_history_collection.find(
+                {"action": "SIGNALEMENT_OBJET"},
+                {
+                    "thing_id": 1,
+                    "thing_name": 1,
+                    "status": 1,
+                    "decision": 1,
+                },
+            )
+        )
+
+        thing_ids = [
+            str(report.get("thing_id") or "").strip()
+            for report in reports
+            if str(report.get("thing_id") or "").strip()
         ]
-        signalements_results = list(user_history_collection.aggregate(signalements_pipeline))
-        
-        # Option 2: Query things_collection for objects in maintenance/panne
-        things_pipeline = [
-            {"$match": {
-                "$or": [
-                    {"maintenance_state": {"$exists": True, "$ne": ""}},
-                    {"maintenance_state": {"$exists": True, "$ne": None}},
-                    {"status": {"$in": ["panne", "en panne", "maintenance", "broken", "hors service", "hs"]}},
-                    {"availability": {"$in": ["panne", "en panne", "maintenance", "broken", "hors service", "hs"]}}
-                ]
-            }},
-            {"$group": {
-                "_id": "$id",
-                "thing_name": {"$first": "$name"},
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}},
-            {"$limit": limit}
+        thing_state_map = _build_thing_state_map(thing_ids)
+
+        counts: dict[str, dict[str, Any]] = {}
+        for report in reports:
+            thing_id = str(report.get("thing_id") or "").strip()
+            if not thing_id:
+                continue
+
+            decision = str(report.get("decision") or "").strip().lower()
+            status = str(report.get("status") or "").strip()
+            if decision in {"reject", "reactivate"} or _is_closed_report_status(status):
+                continue
+
+            thing_state = thing_state_map.get(thing_id)
+            if decision == "accept" and thing_state and not _thing_is_still_reported(thing_state):
+                continue
+
+            bucket = counts.setdefault(
+                thing_id,
+                {
+                    "thing_id": thing_id,
+                    "thing_name": str(report.get("thing_name") or "").strip(),
+                    "count": 0,
+                },
+            )
+            bucket["count"] += 1
+
+            if not bucket["thing_name"] and thing_state:
+                bucket["thing_name"] = str(thing_state.get("name") or "").strip()
+
+        ranked = sorted(
+            counts.values(),
+            key=lambda item: (-int(item.get("count", 0) or 0), str(item.get("thing_name") or "").lower(), str(item.get("thing_id") or "")),
+        )
+
+        return [
+            {
+                "thing_id": item["thing_id"],
+                "thing_name": item.get("thing_name") or "Objet",
+                "count": int(item.get("count", 0) or 0),
+            }
+            for item in ranked[:limit]
         ]
-        things_results = list(things_collection.aggregate(things_pipeline))
-        
-        logger.info(f"DEBUG top-reported: Signalements={len(signalements_results)}, Things maintenance={len(things_results)}")
-        
-        # Combine both sources - prefer signalements if available
-        all_results = signalements_results + things_results
-        
-        # Deduplicate by thing_id, keeping signalement data over things data
-        seen = {}
-        for r in all_results:
-            tid = r.get("_id") or r.get("thing_id")
-            if tid and tid not in seen:
-                seen[tid] = {
-                    "thing_id": tid,
-                    "thing_name": r.get("thing_name") or "Objet",
-                    "count": r.get("count", 1)
-                }
-        
-        combined = list(seen.values())[:limit]
-        logger.info(f"DEBUG top-reported: Combined result count={len(combined)}")
-        
-        return combined
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur stats top-reported: {e}")
 
 
@@ -240,7 +307,7 @@ def get_borrow_stats(request: Request):
             "action": {"$regex": "emprunt|borrow|take", "$options": "i"}
         })
         
-        # Objets retournés (on compte les actions de retour)
+        # Objets retournÃ©s (on compte les actions de retour)
         returned_count = user_history_collection.count_documents({
             "action": {"$regex": "retour|return|release", "$options": "i"}
         })
@@ -292,3 +359,91 @@ def get_admin_notifications_count(request: Request):
         return {"unread": unread}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur notifications count: {e}")
+
+
+@stats_router.get("/admin/stats/app-usage-daily")
+def get_app_usage_daily(request: Request, days: int = 7):
+    _require_authenticated_user(request)
+    try:
+        safe_days = max(3, min(int(days or 7), 30))
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
+        start_date = today - timedelta(days=safe_days - 1)
+
+        date_labels = [
+            (start_date + timedelta(days=offset)).isoformat()
+            for offset in range(safe_days)
+        ]
+        users_counts = {label: 0 for label in date_labels}
+        admins_counts = {label: 0 for label in date_labels}
+
+        scan_start = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+        rows = list(
+            user_history_collection.find(
+                {
+                    "created_at": {"$gte": scan_start},
+                    "action": {"$regex": "connexion|session", "$options": "i"},
+                },
+                {"created_at": 1, "action": 1, "user_id": 1, "email": 1},
+            )
+        )
+
+        user_ids = [str(row.get("user_id") or "").strip() for row in rows if str(row.get("user_id") or "").strip()]
+        role_map: dict[str, str] = {}
+        if user_ids:
+            profile_rows = list(
+                db.utilisateur.find(
+                    {"id": {"$in": list(dict.fromkeys(user_ids))}},
+                    {"id": 1, "role": 1},
+                )
+            )
+            role_map = {
+                str(row.get("id") or "").strip(): str(row.get("role") or "user").strip().lower() or "user"
+                for row in profile_rows
+                if str(row.get("id") or "").strip()
+            }
+
+        for row in rows:
+            dt = _parse_created_at_iso(str(row.get("created_at") or ""))
+            if dt is None:
+                continue
+
+            d = dt.date()
+            if d < start_date or d > today:
+                continue
+
+            key = d.isoformat()
+            action = _normalize_history_action(str(row.get("action") or ""))
+            user_role = role_map.get(str(row.get("user_id") or "").strip(), "user")
+            if action not in {"connexion", "session"}:
+                continue
+
+            if user_role == "admin" or str(row.get("action") or "").lower().startswith("admin -"):
+                admins_counts[key] += 1
+            else:
+                users_counts[key] += 1
+
+        users = [users_counts[label] for label in date_labels]
+        admins = [admins_counts[label] for label in date_labels]
+        totals = [users[i] + admins[i] for i in range(len(date_labels))]
+
+        average_daily = (sum(totals) / len(totals)) if totals else 0.0
+        peak_daily = max(totals) if totals else 0
+        load_level = "normal"
+        if average_daily >= 120 or peak_daily >= 180:
+            load_level = "critical"
+        elif average_daily >= 70 or peak_daily >= 110:
+            load_level = "high"
+
+        return {
+            "labels": date_labels,
+            "users": users,
+            "admins": admins,
+            "totals": totals,
+            "total_connections": int(sum(totals)),
+            "average_daily": round(average_daily, 2),
+            "peak_daily": int(peak_daily),
+            "load_level": load_level,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur stats app usage daily: {e}")
