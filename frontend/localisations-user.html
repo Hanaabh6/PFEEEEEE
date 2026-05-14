@@ -175,6 +175,8 @@
         .location-guide-card {
             display: grid;
             gap: 16px;
+            background: rgba(255, 255, 255, 0.96);
+            color: #0f172a;
         }
         .location-guide-meta {
             display: flex;
@@ -264,16 +266,6 @@
             <div id="currentPos" class="bg-emerald-600 text-white px-5 py-2 rounded-full font-bold shadow-md">
                 <i class="fas fa-street-view mr-2"></i> Ma Position : <span id="posName">Chargement...</span>
             </div>
-
-            <div class="relative">
-                <button class="avatar" id="profileButton">A</button>
-                <div class="dropdown" id="menu">
-                    <strong id="menuName" class="block mb-2 text-gray-800">Utilisateur</strong>
-                    <hr class="mb-2">
-                    <a href="#" id="openProfileOverlay" data-key="menu_profile">Mon profil</a>
-                    <a href="#" id="logoutLink" class="text-red-600" data-key="logout">Déconnexion</a>
-                </div>
-            </div>
         </header>
 
         <main class="p-8">
@@ -282,11 +274,6 @@
                     <span class="page-kicker"><i class="fas fa-location-dot"></i> Localisation interactive</span>
                     <h1>Choisissez votre salle en 3D</h1>
                     <p>Explorez chaque etage, cliquez sur une salle et mettez a jour votre position sans quitter l’architecture du batiment.</p>
-                    <div class="page-badges">
-                        <span class="page-badge"><i class="fas fa-cube"></i> Vue 3D fluide</span>
-                        <span class="page-badge"><i class="fas fa-building"></i> Etages visuels</span>
-                        <span class="page-badge"><i class="fas fa-street-view"></i> Position instantanee</span>
-                    </div>
                 </div>
 
                 <div class="hero-note-card location-guide-card">
@@ -341,10 +328,6 @@
     <script src="translations.js"></script>
     <script>
         // --- LOGIQUE COMMUNE (USER.HTML) ---
-        const profileButton = document.getElementById("profileButton");
-        const menu = document.getElementById("menu");
-        const menuName = document.getElementById("menuName");
-        const logoutLink = document.getElementById("logoutLink");
         const infoOverlay = document.getElementById('infoOverlay');
         const overlayBody = document.getElementById('overlayBody');
         const overlayTitle = document.getElementById('overlayTitle');
@@ -445,8 +428,6 @@
                         }
                     }
 
-                menuName.textContent = displayName;
-                profileButton.textContent = (displayName[0] || "U").toUpperCase();
                 if (window.refreshSidebarProfileCards) {
                     window.refreshSidebarProfileCards(profile);
                 }
@@ -504,15 +485,6 @@
                 return "<p class='text-red-600'>Impossible de charger l'historique.</p>";
             }
         }
-
-        profileButton.onclick = () => menu.classList.toggle("open");
-        document.onclick = (e) => { if(!profileButton.contains(e.target) && !menu.contains(e.target)) menu.classList.remove("open"); };
-
-        logoutLink.onclick = (e) => {
-            e.preventDefault();
-            localStorage.clear();
-            window.location.href = "login.html";
-        };
 
         // --- GESTION POSITION & 3D (TA LOGIQUE ORIGINALE) ---
         const ARCHI_DATA = [
@@ -910,9 +882,17 @@
                 .replace(/'/g, "&#39;");
         }
 
+        function formatRoomObjectStatus(value) {
+            const status = String(value || '').toLowerCase().trim();
+            if (['active', 'actif', 'disponible'].includes(status)) return 'Disponible';
+            if (['inactive', 'inactif', 'indisponible'].includes(status)) return 'Indisponible';
+            if (['en panne', 'panne', 'broken'].includes(status)) return 'En panne';
+            return String(value || '-');
+        }
+
         function buildRoomObjectDetailHtml(item, roomName) {
             const locationLabel = getObjectRoomLabel(item) || roomName || "-";
-            const statusLabel = String(item.maintenance_state || item.status || item.availability || "-");
+            const statusLabel = formatRoomObjectStatus(item.maintenance_state || item.status || item.availability);
             const safeRoom = String(roomName || "").replace(/'/g, "\\'");
             return `
                 <div class='p-2'>

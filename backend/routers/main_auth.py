@@ -561,6 +561,24 @@ def login(data: LoginRequest = Body(...)):
             metadata={"action": "login"},
         )
 
+        # Track last activity for admin/user listings.
+        try:
+            now = datetime.now(timezone.utc)
+            user_history_collection.insert_one(
+                {
+                    "user_id": str(auth_res.user.id),
+                    "email": email,
+                    "action": "Connexion",
+                    "detail": f"Connexion {str(user_role).lower()}",
+                    "status": "Succes",
+                    "date": now.strftime("%d/%m/%Y %H:%M:%S"),
+                    "created_at": now.isoformat(),
+                }
+            )
+            _prune_user_history(str(auth_res.user.id))
+        except Exception as e:
+            print(f"Erreur historique login: {e}")
+
         return {
             "access_token": auth_res.session.access_token,
             "user_id": str(auth_res.user.id),
@@ -807,6 +825,7 @@ def get_admin_users(request: Request):
                 "report_count": int(history_info.get("report_count", 0) or 0),
                 "report_items": history_info.get("report_items", []),
                 "last_activity": str(history_info.get("last_activity", "-") or "-"),
+                "last_activity_raw": str(history_info.get("last_activity_raw", "") or ""),
                 "last_profile_update": last_profile_update,
                 "updated_at": str(item.get("updated_at", "") or ""),
                 "created_at": str(item.get("created_at", "") or ""),
