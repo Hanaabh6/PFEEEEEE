@@ -600,13 +600,6 @@ def get_problem_reports(request: Request, limit: int = Query(default=50, ge=1, l
         query = {"action": "SIGNALEMENT_OBJET", "user_id": user_id}
 
     reports = list(user_history.find(query).sort("created_at", -1).limit(limit))
-    if role == "admin":
-        reports = [
-            report
-            for report in reports
-            if not str(report.get("decision") or "").strip()
-            and str(report.get("status") or "").strip().lower() in {"", "signale", "signalé", "signalee"}
-        ]
     thing_snapshots = _build_thing_snapshot_map(reports)
     serialized = [_serialize_problem_report(report, thing_snapshots) for report in reports]
     return {"success": True, "reports": serialized}

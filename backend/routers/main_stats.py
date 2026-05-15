@@ -219,59 +219,27 @@ def get_top_viewed(request: Request, limit: int = 10):
 def get_top_reported(request: Request, limit: int = 10):
     _require_authenticated_user(request)
     try:
-        reports = list(
-            user_history_collection.find(
-                {"action": "SIGNALEMENT_OBJET"},
-                {
-                    "thing_id": 1,
-                    "thing_name": 1,
-                },
-            )
-        )
-
-        thing_ids = list(
-            {
-                str(report.get("thing_id") or "").strip()
-                for report in reports
-                if str(report.get("thing_id") or "").strip()
-            }
-        )
-        thing_state_map = _build_thing_state_map(thing_ids)
-
-        counts: dict[str, dict[str, Any]] = {}
-        for report in reports:
-            thing_id = str(report.get("thing_id") or "").strip()
-            if not thing_id:
-                continue
-
-            # Statistique cumulative: chaque signalement historique compte,
-            # meme si l'objet est remis en service ou si le signalement est refuse.
-            bucket = counts.setdefault(
-                thing_id,
-                {
-                    "thing_id": thing_id,
-                    "thing_name": str(report.get("thing_name") or "").strip(),
-                    "count": 0,
-                },
-            )
-            bucket["count"] += 1
-
-            thing_state = thing_state_map.get(thing_id)
-            if not bucket["thing_name"] and thing_state:
-                bucket["thing_name"] = str(thing_state.get("name") or "").strip()
-
-        ranked = sorted(
-            counts.values(),
-            key=lambda item: (-int(item.get("count", 0) or 0), str(item.get("thing_name") or "").lower(), str(item.get("thing_id") or "")),
-        )
+        # On calcule le classement en temps réel à partir de l'historique sans rien stocker de nouveau
+        pipeline = [
+            {"$match": {"action": "SIGNALEMENT_OBJET"}},
+            {"$group": {
+                "_id": "$thing_id",
+                "thing_name": {"$first": "$thing_name"},
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"count": -1}},
+            {"$limit": limit}
+        ]
+        
+        results = list(user_history_collection.aggregate(pipeline))
 
         return [
             {
-                "thing_id": item["thing_id"],
-                "thing_name": item.get("thing_name") or "Objet",
-                "count": int(item.get("count", 0) or 0),
+                "thing_id": str(r["_id"]),
+                "thing_name": str(r.get("thing_name") or "Objet"),
+                "count": int(r["count"])
             }
-            for item in ranked[:limit]
+            for r in results
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur stats top-reported: {e}")
