@@ -453,7 +453,6 @@ def update_thing_status(thing_id: str, data: dict = Body(...)):
                 "id": result.get("id"),
                 "name": result.get("name"),
                 "status": result.get("status"),
-                "availability": result.get("availability"),
                 "maintenance_state": result.get("maintenance_state", "")
             }
         }

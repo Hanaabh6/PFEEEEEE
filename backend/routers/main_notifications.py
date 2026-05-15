@@ -116,7 +116,7 @@ def _extract_thing_snapshot(thing_doc: dict | None) -> dict:
         "thing_name": str(thing_doc.get("name") or "").strip(),
         "thing_type": str(thing_doc.get("type") or thing_doc.get("@type") or "").strip(),
         "thing_location": _extract_room_label(thing_doc.get("location")),
-        "thing_status": str(thing_doc.get("status") or thing_doc.get("availability") or "").strip(),
+        "thing_status": str(thing_doc.get("status") or "").strip(),
         "thing_maintenance_state": str(thing_doc.get("maintenance_state") or "").strip(),
     }
 

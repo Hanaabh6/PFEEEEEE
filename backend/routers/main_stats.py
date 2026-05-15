@@ -41,7 +41,7 @@ def _thing_is_still_reported(thing: dict[str, Any] | None) -> bool:
     item = thing or {}
     if str(item.get("maintenance_state") or "").strip():
         return True
-    raw_status = item.get("status") or item.get("availability") or ""
+    raw_status = item.get("status") or ""
     return _normalize_status(str(raw_status)) in {"inactive", "panne"}
 
 
