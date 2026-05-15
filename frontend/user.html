@@ -1336,7 +1336,7 @@ function getObjectStatusSource(item) {
   if (maintenanceState) return maintenanceState;
   const explicitStatus = String(item.status || "").trim();
   if (explicitStatus) return explicitStatus;
-  return String(item.availability || "").trim();
+  return String(item.status || "").trim();
 }
 
 function getStatusLabel(statusCode) {

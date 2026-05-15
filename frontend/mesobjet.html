@@ -1510,7 +1510,7 @@
         tableBody.innerHTML = items.map((item) => {
           const safeId = String(item.thing_id || "").trim();
           const room = getRoomName(item);
-          const availability = String(item.availability || "en_utilisation").toLowerCase();
+          const status = String(item.status || "en_utilisation").toLowerCase();
           const plannedReturn = formatDate(item.planned_return_at);
           const plannedDuration = formatDurationMinutes(item.planned_duration_minutes);
           const plannedReturnDate = item.planned_return_at ? new Date(item.planned_return_at) : null;
@@ -1518,7 +1518,7 @@
           const lampDetected = isLampObject(item);
           const alarmDetected = isAlarmObject(item);
           const tvDetected = isTvObject(item);
-          const badge = availability === "disponible"
+          const badge = status === "disponible"
             ? `<span class="badge badge-ok">${sanitize(tr("status_available", "Disponible"))}</span>`
             : `<span class="badge badge-inuse">${sanitize(tr("status_in_use", "En utilisation"))}</span>`;
 

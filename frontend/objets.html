@@ -544,7 +544,7 @@
             const borrow = getCurrentBorrow(item);
             if (borrow) return 'en_utilisation';
 
-            return String(item && (item.availability || item.status) ? (item.availability || item.status) : 'Inconnu');
+            return String(item && item.status ? item.status : 'Inconnu');
         }
 
         async function confirmUi(message) {
@@ -572,20 +572,18 @@
             const maintenanceState = normalizeText(item && item.maintenance_state ? item.maintenance_state : '');
             const normalizedDisplayStatus = normalizeText(displayStatus);
             const normalizedStatus = normalizeText(item && item.status ? item.status : '');
-            const normalizedAvailability = normalizeText(item && item.availability ? item.availability : '');
 
-            if (currentBorrow || normalizedDisplayStatus === 'en_utilisation' || normalizedAvailability === 'en_utilisation') {
+            if (currentBorrow || normalizedDisplayStatus === 'en_utilisation' || normalizedStatus === 'en_utilisation') {
                 return false;
             }
 
-            if (maintenanceState || isBrokenStatus(displayStatus) || isBrokenStatus(item && item.status) || isBrokenStatus(item && item.availability)) {
+            if (maintenanceState || isBrokenStatus(displayStatus) || isBrokenStatus(item && item.status)) {
                 return true;
             }
 
             if (
                 isAvailableStatus(displayStatus) ||
-                isAvailableStatus(item && item.status) ||
-                isAvailableStatus(item && item.availability)
+                isAvailableStatus(item && item.status)
             ) {
                 return false;
             }
@@ -656,7 +654,7 @@
         function updateObjectInsights(list, query) {
             const normalizedQuery = String(query || '').trim();
             const activeCount = list.filter(function (item) {
-                const raw = String(item.availability || item.status || '').toLowerCase();
+                const raw = String(item.status || '').toLowerCase();
                 return raw === 'disponible' || raw === 'active';
             }).length;
             const inactiveCount = Math.max(list.length - activeCount, 0);
@@ -717,9 +715,9 @@
                     const objectType = String(item.type || item['@type'] || 'Objet Inconnu');
                     const currentBorrow = getCurrentBorrow(item);
                     const displayStatus = getObjectDisplayStatus(item);
-                    const availability = displayStatus.toString().toLowerCase();
-                    const isBorrowed = Boolean(currentBorrow) || availability === 'en_utilisation';
-                    const isAvailable = availability === 'disponible' || availability === 'active';
+                    const status = displayStatus.toString().toLowerCase();
+                    const isBorrowed = Boolean(currentBorrow) || status === 'en_utilisation';
+                    const isAvailable = status === 'disponible' || status === 'active';
                     const canReactivate = canReactivateThing(item, currentBorrow, displayStatus);
                     const roomLabel = extractRoomLabel(item) || 'N/A';
                     const statusTone = isAvailable
@@ -890,7 +888,7 @@
                 name: source.name || '',
                 type: source.type || source['@type'] || '',
                 location: (source.location && source.location.room) || source.location || '',
-                status: source.status || source.availability || 'active',
+                status: source.status || 'active',
                 description: source.description || '',
                 endpoint_url: (source.control && source.control.endpoint) || ''
             };

@@ -892,7 +892,7 @@
 
         function buildRoomObjectDetailHtml(item, roomName) {
             const locationLabel = getObjectRoomLabel(item) || roomName || "-";
-            const statusLabel = formatRoomObjectStatus(item.maintenance_state || item.status || item.availability);
+            const statusLabel = formatRoomObjectStatus(item.maintenance_state || item.status);
             const safeRoom = String(roomName || "").replace(/'/g, "\\'");
             return `
                 <div class='p-2'>
@@ -934,7 +934,7 @@
             const rows = objects.map(function (item, idx) {
                 const name = String(item.name || "Objet");
                 const type = String(item.type || item['@type'] || "-");
-                const statusRaw = String(item.maintenance_state || item.status || item.availability || "").toLowerCase();
+                const statusRaw = String(item.maintenance_state || item.status || "").toLowerCase();
                 const safeRaw = statusRaw.replace(/'/g, "\\'");
                 const statusId = `roomObjStatus-${idx}`;
                 const objectKey = String(item.id || item._id || `roomObj-${idx}`);
