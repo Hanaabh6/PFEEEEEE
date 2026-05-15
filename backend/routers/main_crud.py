@@ -19,7 +19,7 @@ class AddThingRequest(BaseModel):
     type: str = Field(..., min_length=1, max_length=80)
     location: str = Field(..., min_length=1, max_length=120)
     description: str = Field(default="", max_length=800)
-    status: str = Field(default="active", max_length=40)
+    status: str = Field(default="disponible", max_length=40)
     endpoint_url: str = Field(default="", max_length=300)
 
 
@@ -28,7 +28,7 @@ class UpdateThingRequest(BaseModel):
     type: str = Field(..., min_length=1, max_length=80)
     location: str = Field(..., min_length=1, max_length=120)
     description: str = Field(default="", max_length=800)
-    status: str = Field(default="active", max_length=40)
+    status: str = Field(default="disponible", max_length=40)
     endpoint_url: str = Field(default="", max_length=300)
 
 
@@ -57,24 +57,21 @@ def _normalize_text(text: str) -> str:
     return text
 
 
-def _canonical_availability(status: str) -> str:
+def _canonical_status(status: str) -> str:
     s = _normalize_text(status)
     if s in {"active", "disponible", "in-stock", "instock"}:
         return "disponible"
     if s in {"en_utilisation", "en utilisation", "borrowed"}:
         return "en_utilisation"
+    if s in {"maintenance", "en panne", "reparation"}:
+        return "maintenance"
     return "indisponible"
 
 
 def _status_clears_maintenance_state(status: str) -> bool:
     return _normalize_text(status) in {
-        "active",
         "disponible",
-        "in-stock",
-        "instock",
         "en_utilisation",
-        "en utilisation",
-        "borrowed",
     }
 
 
@@ -324,7 +321,7 @@ def add_thing(request: Request, data: AddThingRequest = Body(...)):
 
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
-        availability = _canonical_availability(data.status)
+        status = _canonical_status(data.status)
         remote_control = _build_remote_control(data.endpoint_url, data.type)
         potential_actions = _build_potential_actions(data.endpoint_url, data.type)
 
@@ -336,8 +333,7 @@ def add_thing(request: Request, data: AddThingRequest = Body(...)):
             "search_name_norm": _normalize_text(data.name),
             "type": data.type,
             "description": data.description,
-            "status": data.status,
-            "availability": availability,
+            "status": status,
             "view_count": 0,
             "location": {
                 "@type": "Place",
@@ -410,7 +406,7 @@ def get_thing(thing_id: str):
 
 @crud_router.patch("/things/{thing_id}/status")
 def update_thing_status(thing_id: str, data: dict = Body(...)):
-    """Met à jour le statut et la disponibilité d'un objet."""
+    """Met à jour le statut d'un objet."""
     try:
         new_status = data.get("status", "").strip()
         if not new_status:
@@ -419,16 +415,16 @@ def update_thing_status(thing_id: str, data: dict = Body(...)):
         maintenance_state = str(data.get("maintenance_state", "") or "").strip()
         things = _things_collection()
 
+        status = _canonical_status(new_status)
         update_fields = {
-            "status": new_status,
-            "availability": _canonical_availability(new_status)
+            "status": status
         }
         if maintenance_state:
             update_fields["maintenance_state"] = maintenance_state
-        elif _status_clears_maintenance_state(new_status):
+        elif _status_clears_maintenance_state(status):
             update_fields["maintenance_state"] = ""
 
-        # Mettre à jour le statut et la disponibilité
+        # Mettre à jour le statut
         result = things.find_one_and_update(
             {"id": thing_id},
             {
@@ -479,7 +475,7 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
 
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
-        availability = _canonical_availability(data.status)
+        status = _canonical_status(data.status)
         remote_control = _build_remote_control(data.endpoint_url, data.type)
         potential_actions = _build_potential_actions(data.endpoint_url, data.type)
 
@@ -488,8 +484,7 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
             "search_name_norm": _normalize_text(data.name),
             "type": data.type,
             "description": data.description,
-            "status": data.status,
-            "availability": availability,
+            "status": status,
             "location": {
                 "@type": "Place",
                 "name": location_room,
@@ -501,7 +496,7 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
         }
 
         existing_maintenance_state = str(existing.get("maintenance_state") or "").strip()
-        if _status_clears_maintenance_state(data.status):
+        if _status_clears_maintenance_state(status):
             updated_fields["maintenance_state"] = ""
         elif existing_maintenance_state:
             updated_fields["maintenance_state"] = existing_maintenance_state

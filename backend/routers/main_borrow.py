@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from ..base import things_collection, user_history_collection
 from .main_auth import _get_user_from_token, _prune_user_history, extract_bearer_token, require_admin
+from .main_crud import _canonical_status
 from ..notifications_service import create_notification
 
 borrow_router = APIRouter(tags=["borrow"])
@@ -41,7 +42,7 @@ def _normalize_text(text: str) -> str:
     return str(text or "").strip().lower()
 
 
-def _canonical_availability(status: str) -> str:
+def _canonical_status(status: str) -> str:
     s = _normalize_text(status)
     if s in {"active", "disponible", "in-stock", "instock"}:
         return "disponible"
@@ -190,8 +191,7 @@ def _finalize_borrow_return(
         {"id": thing_id},
         {
             "$set": {
-                "availability": "disponible",
-                "status": "active",
+                "status": "disponible",
                 "maintenance_state": "",
             },
             "$unset": {
@@ -290,8 +290,7 @@ def expire_due_borrows(*, thing_id: str = "", user_id: str = "", limit: int = 20
             {"id": current_thing_id},
             {
                 "$set": {
-                    "availability": "disponible",
-                    "status": "active",
+                    "status": "disponible",
                     "maintenance_state": "",
                 },
                 "$unset": {
@@ -428,8 +427,7 @@ def get_mes_objets(request: Request):
                 "thing_id": thing_id,
                 "name": thing.get("name") or log.get("thing_name") or "Objet",
                 "type": thing.get("type") or thing.get("@type") or "-",
-                "status": thing.get("status") or "inactive",
-                "availability": thing.get("availability") or "en_utilisation",
+                "status": thing.get("status") or "indisponible",
                 "location": {
                     "room": loc.get("room") or loc.get("name") or log.get("salle") or "-",
                     "x": loc.get("x", 0),
@@ -473,8 +471,8 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
     if not thing:
         raise HTTPException(status_code=404, detail="Objet introuvable")
 
-    availability = _canonical_availability(str(thing.get("availability") or thing.get("status") or ""))
-    if availability != "disponible":
+    status = _canonical_status(str(thing.get("status") or ""))
+    if status != "disponible":
         raise HTTPException(status_code=400, detail="Objet non disponible")
 
     now = datetime.now(timezone.utc)
@@ -505,8 +503,7 @@ def prendre_objet(thing_id: str, request: Request, data: BorrowRequest = Body(de
         {"id": thing_id},
         {
             "$set": {
-                "availability": "en_utilisation",
-                "status": "inactive",
+                "status": "en_utilisation",
                 "current_borrow": {
                     "active": True,
                     "user_id": user_id,

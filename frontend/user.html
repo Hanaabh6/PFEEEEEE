@@ -464,14 +464,17 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   display: grid;
   gap: 14px;
   margin-bottom: 8px;
+  width: min(1080px, 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .user-locator-panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: transparent;
+  border: none;
   border-radius: 18px;
   padding: 14px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+  box-shadow: none;
 }
 
 .user-locator-grid {
@@ -544,8 +547,8 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
 .user-search-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2px;
+  justify-content: center;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -553,13 +556,14 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 .user-search-input {
   flex: 1 1 auto;
-  min-width: 300px;
+  min-width: 0;
+  width: min(100%, 560px);
   max-width: 100%;
 }
 
@@ -568,8 +572,8 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   align-items: center;
   gap: 2px;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  flex: 1;
+  justify-content: center;
+  flex: 1 1 560px;
 }
 
 .user-current-pos {
@@ -600,6 +604,88 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   padding: 2px 0 6px;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
+  margin: 0 0 10px;
+  justify-content: flex-start;
+  cursor: grab;
+  touch-action: pan-x;
+}
+
+.user-empty-state {
+  display: none;
+  width: min(1080px, 100%);
+  margin: 26px auto 0;
+  padding: 36px 24px;
+  border-radius: 24px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-align: center;
+}
+
+.user-empty-state.is-visible {
+  display: grid;
+  place-items: center;
+}
+
+.user-empty-state-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.user-empty-state img {
+  width: min(200px, 48vw);
+  height: auto;
+  display: block;
+}
+
+.user-empty-state-copy {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+
+.user-empty-state-copy strong {
+  font-size: clamp(28px, 5vw, 56px);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+}
+
+.user-empty-state-copy span {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.user-no-results {
+  display: none;
+  width: min(1080px, 100%);
+  margin: 18px auto 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.user-no-results.is-visible {
+  display: block;
+}
+
+#objectsSection[hidden] {
+  display: none !important;
+}
+
+#objectsSection {
+  width: min(1080px, 100%);
+  margin: 26px auto 0;
 }
 
 .filter-chip {
@@ -719,6 +805,16 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
   <script src="sidebar-loader.js?v=20260501-favorites-fix2"></script>
 
   <div class="main">
+    <div id="userEmptyState" class="user-empty-state" aria-hidden="true">
+      <div class="user-empty-state-inner">
+        <img src="intellibuild-mark.svg" alt="IntelliBuild">
+        <div class="user-empty-state-copy">
+          <strong>IntelliBuild</strong>
+          <span>Recherchez un objet pour afficher la liste</span>
+        </div>
+      </div>
+    </div>
+
     <div class="user-top-area">
       <section class="user-locator-panel">
         <div class="user-locator-grid">
@@ -755,11 +851,11 @@ tbody tr:hover { background: rgba(16, 185, 129, 0.1); }
       </div>
     </div>
 
-    <div id="userQuickFilters" class="user-quick-filters" aria-label="Filtrer par type d'objet">
-      <button type="button" class="filter-chip is-active" data-quick-query="">Tout</button>
-    </div>
+    <div id="userQuickFilters" class="user-quick-filters" aria-label="Filtrer par type d'objet"></div>
 
-    <div class="table-box dashboard-table" id="objectsSection">
+    <div id="userNoResultsMessage" class="user-no-results" aria-hidden="true">Aucun résultat trouvé</div>
+
+    <div class="table-box dashboard-table" id="objectsSection" hidden>
       <table>
         <thead>
           <tr>
@@ -809,6 +905,8 @@ const langNote = document.querySelector(".lang-note");
 const objectsBody = document.getElementById("objectsBody");
 const mainSearch = document.getElementById("mainSearch");
 const objectsSection = document.getElementById("objectsSection");
+const userEmptyState = document.getElementById("userEmptyState");
+const userNoResultsMessage = document.getElementById("userNoResultsMessage");
 const openHistoryOverlay = document.getElementById("openHistoryOverlay");
 const openFavoritesOverlay = document.getElementById("openFavoritesOverlay");
 const openReportsOverlay = document.getElementById("openReportsOverlay");
@@ -1178,11 +1276,9 @@ function renderQuickFilters() {
   if (!userQuickFilters) return;
 
   const activeQuery = String(activeQuickFilterQuery || (mainSearch ? mainSearch.value : '') || '');
-  const buttons = [{ label: 'Tout', query: '' }].concat(
-    userObjectTypeFilters.map(function (label) {
-      return { label: label, query: label };
-    })
-  );
+  const buttons = userObjectTypeFilters.map(function (label) {
+    return { label: label, query: label };
+  });
 
   userQuickFilters.innerHTML = buttons.map(function (button) {
     return `<button type="button" class="filter-chip" data-quick-query="${escapeHtml(button.query)}">${escapeHtml(button.label)}</button>`;
@@ -1879,6 +1975,19 @@ async function loadUserThings(query) {
   try {
     await loadRoomCoords();
 
+    const normalizedQuery = String(query || "").trim();
+    if (objectsSection) {
+      objectsSection.hidden = !normalizedQuery;
+    }
+    if (userEmptyState) {
+      userEmptyState.classList.toggle("is-visible", !normalizedQuery);
+      userEmptyState.setAttribute("aria-hidden", normalizedQuery ? "true" : "false");
+    }
+    if (userNoResultsMessage) {
+      userNoResultsMessage.classList.remove("is-visible");
+      userNoResultsMessage.setAttribute("aria-hidden", "true");
+    }
+
     let user_x = Number(localStorage.getItem('user_x') || 0);
     let user_y = Number(localStorage.getItem('user_y') || 0);
     let user_z = Number(localStorage.getItem('user_z') || 0);
@@ -1911,7 +2020,7 @@ async function loadUserThings(query) {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        search_query: query || "",
+        search_query: normalizedQuery,
         user_room,
         user_x,
         user_y,
@@ -1940,61 +2049,78 @@ async function loadUserThings(query) {
       userCurrentPos.textContent = user_room || "Non definie";
     }
 
-    objectsBody.innerHTML = visibleList.map(function (item) {
-      const objectId = String(item.id || item._id || "").trim();
-      const statusCode = toStatusCode(getObjectStatusSource(item));
-      const statusClass = statusCode === "active" ? "status-active" : "status-inactive";
-      const statusText = getStatusLabel(statusCode);
-      const itemLocation = item.location?.room || item.location || "";
-      const canonicalItemLocation = canonicalRoomFromCache(itemLocation) || itemLocation;
-      const sameRoomByName = Boolean(normalizeRoom(canonicalItemLocation)) && normalizeRoom(canonicalItemLocation) === normalizeRoom(user_room);
-      const sameRoom = Boolean(item.same_room) || sameRoomByName;
-
-      let distanceValue = Number(item.distance);
-      if (!Number.isFinite(distanceValue) || (!sameRoom && distanceValue <= 0)) {
-        const fallbackObj = getCoordsFromCache(canonicalItemLocation);
-        const objectCoords = getCoordsFromLocation(item.location) || fallbackObj;
-        const computedDistance = computeFallbackDistance(userCoords, objectCoords);
-        distanceValue = Number.isFinite(computedDistance) ? computedDistance : distanceValue;
+    if (normalizedQuery && !visibleList.length) {
+      objectsBody.innerHTML = "";
+      if (objectsSection) {
+        objectsSection.hidden = true;
       }
+      if (userNoResultsMessage) {
+        userNoResultsMessage.classList.add("is-visible");
+        userNoResultsMessage.setAttribute("aria-hidden", "false");
+      }
+      refreshStats();
+      return;
+    }
 
-      const distanceText = sameRoom
-        ? "0m (MÊME SALLE)"
-        : (Number.isFinite(distanceValue) && distanceValue > 0
-            ? `${Math.max(1, Math.round(distanceValue))}m`
-            : (positionDefined ? "-" : "Definir ma position"));
-      const objectName = String(item.name || "Objet");
-      const objectType = String(item.type || item["@type"] || "-");
-      const objectLocation = String(canonicalItemLocation || "-");
-      const floorLabel = (findFloorByRoom(canonicalItemLocation)?.name) || "-";
-      const objectDescription = String(item.description || item.details || item.note || "Aucune description disponible.");
-      const safeObjectId = objectId.replace(/"/g, "&quot;");
-      objectDetailsCache.set(objectId, {
-        id: objectId,
-        name: objectName,
-        type: objectType,
-        location: objectLocation,
-        description: objectDescription,
-        maintenanceState: String(item.maintenance_state || item.maintenanceState || "").trim(),
-        statusCode: statusCode,
-        statusText: statusText,
-        distanceText: distanceText,
-        floorLabel: floorLabel,
-        sameRoom: sameRoom
-      });
+    if (normalizedQuery) {
+      objectsBody.innerHTML = visibleList.map(function (item) {
+        const objectId = String(item.id || item._id || "").trim();
+        const statusCode = toStatusCode(getObjectStatusSource(item));
+        const statusClass = statusCode === "active" ? "status-active" : "status-inactive";
+        const statusText = getStatusLabel(statusCode);
+        const itemLocation = item.location?.room || item.location || "";
+        const canonicalItemLocation = canonicalRoomFromCache(itemLocation) || itemLocation;
+        const sameRoomByName = Boolean(normalizeRoom(canonicalItemLocation)) && normalizeRoom(canonicalItemLocation) === normalizeRoom(user_room);
+        const sameRoom = Boolean(item.same_room) || sameRoomByName;
 
-      return `
-        <tr class="object-row" tabindex="0" role="button" aria-label="Voir le detail de ${sanitizeText(objectName)}" data-obj-id="${safeObjectId}" data-obj-name="${sanitizeText(objectName)}" data-obj-status="${statusCode}">
-          <td>${sanitizeText(objectName)}</td>
-          <td>${sanitizeText(objectType)}</td>
-          <td>${sanitizeText(objectLocation)}</td>
-          <td>${sanitizeText(floorLabel)}</td>
-          <td><button type="button" class="verify-btn" onclick="event.stopPropagation(); checkAvailability('${safeObjectId}', '${sanitizeText(objectName)}', '${statusCode}')" style="border: none; background: #10b981; color: white; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px;">Vérifier</button></td>
-        </tr>
-      `;
-    }).join("");
+        let distanceValue = Number(item.distance);
+        if (!Number.isFinite(distanceValue) || (!sameRoom && distanceValue <= 0)) {
+          const fallbackObj = getCoordsFromCache(canonicalItemLocation);
+          const objectCoords = getCoordsFromLocation(item.location) || fallbackObj;
+          const computedDistance = computeFallbackDistance(userCoords, objectCoords);
+          distanceValue = Number.isFinite(computedDistance) ? computedDistance : distanceValue;
+        }
 
-    await triggerNearbyNotification(visibleList, user_room);
+        const distanceText = sameRoom
+          ? "0m (MÊME SALLE)"
+          : (Number.isFinite(distanceValue) && distanceValue > 0
+              ? `${Math.max(1, Math.round(distanceValue))}m`
+              : (positionDefined ? "-" : "Definir ma position"));
+        const objectName = String(item.name || "Objet");
+        const objectType = String(item.type || item["@type"] || "-");
+        const objectLocation = String(canonicalItemLocation || "-");
+        const floorLabel = (findFloorByRoom(canonicalItemLocation)?.name) || "-";
+        const objectDescription = String(item.description || item.details || item.note || "Aucune description disponible.");
+        const safeObjectId = objectId.replace(/"/g, "&quot;");
+        objectDetailsCache.set(objectId, {
+          id: objectId,
+          name: objectName,
+          type: objectType,
+          location: objectLocation,
+          description: objectDescription,
+          maintenanceState: String(item.maintenance_state || item.maintenanceState || "").trim(),
+          statusCode: statusCode,
+          statusText: statusText,
+          distanceText: distanceText,
+          floorLabel: floorLabel,
+          sameRoom: sameRoom
+        });
+
+        return `
+          <tr class="object-row" tabindex="0" role="button" aria-label="Voir le detail de ${sanitizeText(objectName)}" data-obj-id="${safeObjectId}" data-obj-name="${sanitizeText(objectName)}" data-obj-status="${statusCode}">
+            <td>${sanitizeText(objectName)}</td>
+            <td>${sanitizeText(objectType)}</td>
+            <td>${sanitizeText(objectLocation)}</td>
+            <td>${sanitizeText(floorLabel)}</td>
+            <td><button type="button" class="verify-btn" onclick="event.stopPropagation(); checkAvailability('${safeObjectId}', '${sanitizeText(objectName)}', '${statusCode}')" style="border: none; background: #10b981; color: white; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px;">Vérifier</button></td>
+          </tr>
+        `;
+      }).join("");
+
+      await triggerNearbyNotification(visibleList, user_room);
+    } else {
+      objectsBody.innerHTML = "";
+    }
 
     syncQuickFilters(visibleList, query);
 
@@ -2022,6 +2148,9 @@ async function loadUserThings(query) {
     }
 
     refreshStats();
+    if (!normalizedQuery) {
+      objectsBody.removeAttribute("aria-busy");
+    }
   } catch (error) {
     console.error("Erreur objets:", error);
   }

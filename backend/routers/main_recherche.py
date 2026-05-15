@@ -402,7 +402,6 @@ def _collect_lexical_candidates(query_norm: str, tokens: list[str], limit: int =
                 {"location.room": {"$regex": safe, "$options": "i"}},
                 {"location": {"$regex": safe, "$options": "i"}},
                 {"status": {"$regex": safe, "$options": "i"}},
-                {"availability": {"$regex": safe, "$options": "i"}},
             ])
 
     adaptive_limit = 120 if is_ultra_short else (260 if is_short else limit)
@@ -633,7 +632,7 @@ def _search_logic(data: SearchRequest) -> list[dict]:
 
         status_bonus = 0
         if matching_status:
-            item_status = normalize_text(str(item.get("status", item.get("availability", "")))).replace("hors ligne", "hors-ligne")
+            item_status = normalize_text(str(item.get("status", ""))).replace("hors ligne", "hors-ligne")
             if any(item_status == normalize_text(s).replace("hors ligne", "hors-ligne") for s in matching_status):
                 status_bonus = 15
 
@@ -778,7 +777,6 @@ def _extract_searchable_fields(item: dict) -> list[str]:
         str(item.get("type", "")),
         str(item.get("description", "")),
         str(item.get("status", "")),
-        str(item.get("availability", "")),
     ]
 
     loc = item.get("location", "")

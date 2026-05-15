@@ -16,6 +16,7 @@ from backend.routers.main_localisation import canonical_room_name, coords_from_r
 from backend.routers.main_notifications import notifications_router
 from backend.routers.main_recherche import recherche_router
 from backend.routers.main_stats import stats_router
+from backend.routers.main_objects import objects_router
 
 
 app = FastAPI(title="IntelliBuild")
@@ -143,6 +144,7 @@ app.include_router(crud_router)
 app.include_router(notifications_router)
 app.include_router(devices_router)
 app.include_router(stats_router)
+app.include_router(objects_router)
 
 
 @app.on_event("startup")

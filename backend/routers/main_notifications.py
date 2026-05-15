@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..base import notifications_collection, user_history_collection, things_collection
 from .main_auth import _get_user_from_token, extract_bearer_token, get_role_from_token, require_admin
-from .main_crud import _canonical_availability
+from .main_crud import _canonical_status
 from ..notifications_service import create_notification
 
 notifications_router = APIRouter(tags=["notifications"])
@@ -206,7 +206,6 @@ def _update_reported_thing_state(thing_id: str, status: str, maintenance_state: 
 
     update_fields = {
         "status": status,
-        "availability": _canonical_availability(status),
         "maintenance_state": str(maintenance_state or "").strip(),
     }
     updated = _things_collection().find_one_and_update(

@@ -43,13 +43,13 @@
     const n = norm(s||'');
     if(!n) return 'Inconnu';
     if(n==='active' || n==='disponible' || n==='available') return 'Disponible';
-    if(n==='borrowed' || n.includes('emprunt') || n.includes('en_utilisation') || n.includes('en utilisation') || n.includes('en_util')) return 'En utilisation';
-    if(n.includes('panne') || n.includes('hs') || n.includes('hors')) return 'En panne';
+    if(n==='borrowed' || n.includes('en_utilisation') || n.includes('en utilisation')) return 'En utilisation';
+    if(n.includes('panne') || n.includes('hs') || n.includes('hors') || n==='maintenance') return 'En panne';
     if(n==='inactive' || n.includes('inact') || n.includes('indisponibl')) return 'Indisponible';
     return String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
   }
-  function dStatus(i) { return String(i&&i.maintenance_state?i.maintenance_state:'').trim() || String(i&&(i.status||i.availability)?(i.status||i.availability):'inconnu'); }
-  function canReac(i) { const ds=dStatus(i), cb=i&&typeof i.current_borrow==='object'?i.current_borrow:null; if(cb||norm(ds)==='en_utilisation'||norm(i&&i.availability)==='en_utilisation')return false; if(norm(i&&i.maintenance_state)||isBroken(ds)||isBroken(i&&i.status)||isBroken(i&&i.availability))return true; if(isAvail(ds)||isAvail(i&&i.status)||isAvail(i&&i.availability))return false; return false; }
+  function dStatus(i) { return String(i&&i.maintenance_state?i.maintenance_state:'').trim() || String(i&&i.status?i.status:'inconnu'); }
+  function canReac(i) { const ds=dStatus(i), cb=i&&typeof i.current_borrow==='object'?i.current_borrow:null; if(cb||norm(ds)==='en_utilisation')return false; if(norm(i&&i.maintenance_state)||isBroken(ds)||isBroken(i&&i.status))return true; if(isAvail(ds)||isAvail(i&&i.status))return false; return false; }
   function gRoom(s) { const l=s&&typeof s==='object'&&Object.prototype.hasOwnProperty.call(s,'location')?s.location:s; if(typeof l==='string')return String(l).trim(); if(!l||typeof l!=='object')return''; return String(l.room||l.name||'').trim(); }
   function gFloor(i){
     try{

@@ -692,7 +692,7 @@
           name: String(item.name || "Objet sans nom").trim() || "Objet sans nom",
           objectType: normalizeThingType(item.type || item["@type"] || ""),
           location: getThingLocationLabel(item.location),
-          availability: String(item.availability || item.status || "").trim()
+          status: String(item.status || "").trim()
         });
       }
 

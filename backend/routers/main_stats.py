@@ -98,33 +98,25 @@ def get_overview_stats(request: Request):
     try:
         total = things_collection.count_documents({})
         active = things_collection.count_documents({
-            "$or": [
-                {"status": {"$in": ["active", "Active", "disponible", "Disponible"]}},
-                {"availability": {"$in": ["active", "Active", "disponible", "Disponible"]}}
-            ]
+            "status": "disponible"
         })
         inactive = things_collection.count_documents({
-            "$or": [
-                {"status": {"$in": ["inactive", "Inactive", "indisponible", "hors service", "hors-service"]}},
-                {"availability": {"$in": ["inactive", "Inactive", "indisponible", "hors service", "hors-service"]}}
-            ]
+            "status": "indisponible"
         })
         
         # Objets en panne / maintenance
         broken = things_collection.count_documents({
             "$or": [
                 {"maintenance_state": {"$exists": True, "$ne": ""}},
-                {"status": {"$in": ["panne", "en panne", "maintenance"]}},
-                {"availability": {"$in": ["panne", "en panne", "maintenance"]}}
+                {"status": "maintenance"}
             ]
         })
         
-        # Objets actuellement empruntÃ©s
+        # Objets actuellement empruntes
         borrowed = things_collection.count_documents({
             "$or": [
                 {"current_borrow": {"$exists": True, "$ne": None}},
-                {"status": "en_utilisation"},
-                {"availability": "en_utilisation"}
+                {"status": "en_utilisation"}
             ]
         })
         
@@ -187,16 +179,24 @@ def get_stats_by_type(request: Request):
 def get_stats_by_status(request: Request):
     _require_authenticated_user(request)
     try:
-        items = list(things_collection.find({}, {"status": 1, "availability": 1, "maintenance_state": 1}))
-        status_counts = {"active": 0, "inactive": 0, "en_utilisation": 0, "panne": 0, "autre": 0}
+        items = list(things_collection.find({}, {"status": 1, "maintenance_state": 1}))
+        status_counts = {"disponible": 0, "indisponible": 0, "en_utilisation": 0, "maintenance": 0, "autre": 0}
         
         for item in items:
-            raw_status = item.get("status") or item.get("availability") or ""
-            if item.get("maintenance_state"):
-                status_counts["panne"] += 1
+            raw_status = item.get("status") or ""
+            if raw_status == "maintenance" or item.get("maintenance_state"):
+                status_counts["maintenance"] = status_counts.get("maintenance", 0) + 1
             else:
                 normalized = _normalize_status(raw_status)
-                status_counts[normalized] += 1
+                # Map old keys to new if needed
+                if normalized == "active": normalized = "disponible"
+                if normalized == "inactive": normalized = "indisponible"
+                if normalized == "panne": normalized = "maintenance"
+                
+                if normalized in status_counts:
+                    status_counts[normalized] += 1
+                else:
+                    status_counts["autre"] += 1
         
         return [{"status": k, "count": v} for k, v in status_counts.items() if v > 0]
     except Exception as e:
