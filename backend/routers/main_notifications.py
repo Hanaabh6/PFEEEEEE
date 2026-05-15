@@ -537,7 +537,12 @@ def review_problem_report(report_id: str, request: Request, data: ProblemReportD
         notification_message = f"Votre signalement pour {thing_name} a ete accepte. L'objet est maintenant marque en panne."
         notification_type = "warning"
     elif decision == "reject":
-        update_fields["status"] = "Refuse"
+        if thing_id:
+            updated_thing = _update_reported_thing_state(thing_id, "active", "")
+            update_fields.update(_extract_thing_snapshot(updated_thing))
+            update_fields["status"] = "Refuse - objet remis en service"
+        else:
+            update_fields["status"] = "Refuse"
         notification_title = "Signalement refuse"
         notification_message = f"Votre signalement pour {thing_name} a ete refuse par l'administration."
         notification_type = "error"
@@ -595,6 +600,13 @@ def get_problem_reports(request: Request, limit: int = Query(default=50, ge=1, l
         query = {"action": "SIGNALEMENT_OBJET", "user_id": user_id}
 
     reports = list(user_history.find(query).sort("created_at", -1).limit(limit))
+    if role == "admin":
+        reports = [
+            report
+            for report in reports
+            if not str(report.get("decision") or "").strip()
+            and str(report.get("status") or "").strip().lower() in {"", "signale", "signalé", "signalee"}
+        ]
     thing_snapshots = _build_thing_snapshot_map(reports)
     serialized = [_serialize_problem_report(report, thing_snapshots) for report in reports]
     return {"success": True, "reports": serialized}

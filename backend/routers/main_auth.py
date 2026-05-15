@@ -603,12 +603,19 @@ def signup(data: SignupRequest = Body(...)):
     try:
         res = signup_user(email, data.password)
         if res.user:
-            supabase.table("utilisateur").insert({
-                "id": res.user.id,
-                "email": email,
-                "role": "user",
-                "localisation": None,
-            }).execute()
+            auth_row = _normalize_auth_user_payload(res.user)
+            profile_row = _ensure_user_profile_row(
+                str(res.user.id),
+                email=email,
+                role="user",
+                auth_row=auth_row,
+            )
+            if not profile_row:
+                try:
+                    delete_user_admin(str(res.user.id))
+                except Exception as cleanup_error:
+                    print(f"Erreur nettoyage auth signup '{res.user.id}': {cleanup_error}")
+                raise HTTPException(status_code=500, detail="Impossible de creer la ligne utilisateur")
             return {"success": True, "message": "Compte cree"}
 
         raise HTTPException(status_code=400, detail="Erreur signup")

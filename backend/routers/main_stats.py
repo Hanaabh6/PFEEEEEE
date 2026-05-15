@@ -29,22 +29,6 @@ def _normalize_status(value: str) -> str:
     return "autre"
 
 
-def _is_closed_report_status(status: str) -> bool:
-    value = str(status or "").strip().lower()
-    return any(
-        token in value
-        for token in ("refuse", "rejet", "resolu", "remis en service", "traite")
-    )
-
-
-def _thing_is_still_reported(thing: dict[str, Any] | None) -> bool:
-    item = thing or {}
-    if str(item.get("maintenance_state") or "").strip():
-        return True
-    raw_status = item.get("status") or ""
-    return _normalize_status(str(raw_status)) in {"inactive", "panne"}
-
-
 def _build_thing_state_map(thing_ids: list[str]) -> dict[str, dict[str, Any]]:
     clean_ids = [str(thing_id or "").strip() for thing_id in thing_ids if str(thing_id or "").strip()]
     if not clean_ids:
@@ -130,7 +114,13 @@ def get_overview_stats(request: Request):
         })
         # Also include 'signalement' actions recorded in user_history_collection
         history_reports = user_history_collection.count_documents({
-            "action": {"$regex": "signal|SIGNALEMENT", "$options": "i"}
+            "action": {"$regex": "signal|SIGNALEMENT", "$options": "i"},
+            "$or": [
+                {"decision": {"$exists": False}},
+                {"decision": ""},
+                {"status": "signale"},
+                {"status": ""},
+            ],
         })
         pending_reports = notif_unread + history_reports
         
@@ -235,17 +225,17 @@ def get_top_reported(request: Request, limit: int = 10):
                 {
                     "thing_id": 1,
                     "thing_name": 1,
-                    "status": 1,
-                    "decision": 1,
                 },
             )
         )
 
-        thing_ids = [
-            str(report.get("thing_id") or "").strip()
-            for report in reports
-            if str(report.get("thing_id") or "").strip()
-        ]
+        thing_ids = list(
+            {
+                str(report.get("thing_id") or "").strip()
+                for report in reports
+                if str(report.get("thing_id") or "").strip()
+            }
+        )
         thing_state_map = _build_thing_state_map(thing_ids)
 
         counts: dict[str, dict[str, Any]] = {}
@@ -254,15 +244,8 @@ def get_top_reported(request: Request, limit: int = 10):
             if not thing_id:
                 continue
 
-            decision = str(report.get("decision") or "").strip().lower()
-            status = str(report.get("status") or "").strip()
-            if decision in {"reject", "reactivate"} or _is_closed_report_status(status):
-                continue
-
-            thing_state = thing_state_map.get(thing_id)
-            if decision == "accept" and thing_state and not _thing_is_still_reported(thing_state):
-                continue
-
+            # Statistique cumulative: chaque signalement historique compte,
+            # meme si l'objet est remis en service ou si le signalement est refuse.
             bucket = counts.setdefault(
                 thing_id,
                 {
@@ -273,6 +256,7 @@ def get_top_reported(request: Request, limit: int = 10):
             )
             bucket["count"] += 1
 
+            thing_state = thing_state_map.get(thing_id)
             if not bucket["thing_name"] and thing_state:
                 bucket["thing_name"] = str(thing_state.get("name") or "").strip()
 

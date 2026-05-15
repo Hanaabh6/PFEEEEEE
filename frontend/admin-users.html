@@ -735,6 +735,16 @@
         return text;
       }
 
+      function formatDateBest() {
+        for (let index = 0; index < arguments.length; index += 1) {
+          const formatted = formatDate(arguments[index]);
+          if (formatted && formatted !== '-') {
+            return formatted;
+          }
+        }
+        return '-';
+      }
+
       function normalizeList(value) {
         return Array.isArray(value) ? value : [];
       }
@@ -756,6 +766,7 @@
             history_count: Number(item.history_count || 0),
             last_activity: formatText(item.last_activity, '-'),
             last_activity_raw: formatText(item.last_activity_raw, ''),
+            last_sign_in_at: formatText(item.last_sign_in_at, ''),
             last_profile_update: formatText(profileUpdate, '-'),
             last_profile_update_raw: profileUpdate,
             last_profile_update_mapped: (function () {
@@ -859,8 +870,8 @@
               <td>${renderPill(user.role)}</td>
               <td><strong>${renderAdminAwareCount(user, user.favorites_count)}</strong></td>
               <td><strong>${renderAdminAwareCount(user, user.report_count)}</strong></td>
-              <td>${escapeHtml(formatDate(user.last_activity_raw) || formatDate(user.last_activity))}</td>
-              <td>${escapeHtml(formatDate(user.last_profile_update) || user.last_profile_update_mapped || '-')}</td>
+              <td>${escapeHtml(formatDateBest(user.last_activity_raw, user.last_activity, user.last_sign_in_at, user.last_profile_update_raw, user.updated_at, user.created_at))}</td>
+              <td>${escapeHtml(formatDateBest(user.last_profile_update_raw, user.last_profile_update, user.updated_at, user.created_at))}</td>
               <td>
 
                 <div class="row-actions">
@@ -951,7 +962,7 @@
 
       function openOverlay(user) {
         detailTitle.textContent = `Détails de ${user.display_name}`;
-        detailSubtitle.textContent = `${user.email} • ${user.id}`;
+        detailSubtitle.innerHTML = `<span class="mono">${escapeHtml(user.email)}</span><br><span class="mono">ID: ${escapeHtml(user.id)}</span>`;
 
         const favorites = normalizeList(user.favorites);
         const reports = normalizeList(user.report_items);
@@ -982,8 +993,8 @@
             <div class="detail-card"><p class="detail-label">Rôle</p><p class="detail-value">${renderPill(user.role)}</p></div>
             ${user.role === 'admin' ? '' : `<div class="detail-card"><p class="detail-label">Favoris</p><p class="detail-value">${user.favorites_count}</p></div>`}
             ${user.role === 'admin' ? '' : `<div class="detail-card"><p class="detail-label">Signalements</p><p class="detail-value">${user.report_count}</p></div>`}
-            <div class="detail-card"><p class="detail-label">Dernière activité</p><p class="detail-value">${escapeHtml(formatDate(user.last_activity))}</p></div>
-            <div class="detail-card"><p class="detail-label">Dernière maj profil</p><p class="detail-value">${escapeHtml(formatDate(user.last_profile_update) || user.last_profile_update_mapped || user.last_profile_update_raw || '-')}</p></div>
+            <div class="detail-card"><p class="detail-label">Dernière activité</p><p class="detail-value">${escapeHtml(formatDateBest(user.last_activity_raw, user.last_activity, user.last_sign_in_at, user.last_profile_update_raw, user.updated_at, user.created_at))}</p></div>
+            <div class="detail-card"><p class="detail-label">Dernière maj profil</p><p class="detail-value">${escapeHtml(formatDateBest(user.last_profile_update_raw, user.last_profile_update, user.updated_at, user.created_at, user.last_sign_in_at))}</p></div>
           </div>
 
           ${user.role === 'admin' ? '' : `

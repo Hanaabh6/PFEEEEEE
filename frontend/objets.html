@@ -461,8 +461,8 @@
                         <label class="block">
                             <span class="text-slate-600 font-semibold">Statut</span>
                             <select id="editStatus" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-                                <option value="active" ${String(details.status || '').toLowerCase() === 'active' ? 'selected' : ''}>disponible</option>
-                                <option value="inactive" ${String(details.status || '').toLowerCase() !== 'active' ? 'selected' : ''}>indisponible</option>
+                                <option value="disponible" ${['disponible', 'active'].includes(String(details.status || '').toLowerCase()) ? 'selected' : ''}>disponible</option>
+                                <option value="indisponible" ${!['disponible', 'active'].includes(String(details.status || '').toLowerCase()) ? 'selected' : ''}>indisponible</option>
                             </select>
                         </label>
                         <label class="md:col-span-2 block">
@@ -541,10 +541,12 @@
             const maintenanceState = String(item && item.maintenance_state ? item.maintenance_state : '').trim();
             if (maintenanceState) return maintenanceState;
 
-            const borrow = getCurrentBorrow(item);
-            if (borrow) return 'en_utilisation';
-
-            return String(item && item.status ? item.status : 'Inconnu');
+            const rawStatus = String(item && item.status ? item.status : 'indisponible').toLowerCase();
+            if (rawStatus === 'en_utilisation' || rawStatus === 'borrowed') return 'en_utilisation';
+            if (rawStatus === 'active') return 'disponible';
+            if (rawStatus === 'inactive') return 'indisponible';
+            
+            return rawStatus;
         }
 
         async function confirmUi(message) {
@@ -573,7 +575,7 @@
             const normalizedDisplayStatus = normalizeText(displayStatus);
             const normalizedStatus = normalizeText(item && item.status ? item.status : '');
 
-            if (currentBorrow || normalizedDisplayStatus === 'en_utilisation' || normalizedStatus === 'en_utilisation') {
+            if (normalizedDisplayStatus === 'en_utilisation' || normalizedStatus === 'en_utilisation' || normalizedStatus === 'borrowed') {
                 return false;
             }
 
@@ -713,10 +715,10 @@
                     const itemId = String(item.id || '').trim();
                     if (itemId) objectCacheById[itemId] = item;
                     const objectType = String(item.type || item['@type'] || 'Objet Inconnu');
-                    const currentBorrow = getCurrentBorrow(item);
                     const displayStatus = getObjectDisplayStatus(item);
                     const status = displayStatus.toString().toLowerCase();
-                    const isBorrowed = Boolean(currentBorrow) || status === 'en_utilisation';
+                    const currentBorrow = getCurrentBorrow(item);
+                    const isBorrowed = status === 'en_utilisation';
                     const isAvailable = status === 'disponible' || status === 'active';
                     const canReactivate = canReactivateThing(item, currentBorrow, displayStatus);
                     const roomLabel = extractRoomLabel(item) || 'N/A';
@@ -797,7 +799,7 @@
                 const response = await fetch(`${apiBase}/things/${encodeURIComponent(cleanId)}/status`, {
                     method: 'PATCH',
                     headers: authHeaders(),
-                    body: JSON.stringify({ status: 'active' })
+                    body: JSON.stringify({ status: 'disponible' })
                 });
 
                 const data = await response.json().catch(() => ({}));
@@ -888,7 +890,7 @@
                 name: source.name || '',
                 type: source.type || source['@type'] || '',
                 location: (source.location && source.location.room) || source.location || '',
-                status: source.status || 'active',
+                status: source.status || 'disponible',
                 description: source.description || '',
                 endpoint_url: (source.control && source.control.endpoint) || ''
             };
@@ -937,7 +939,7 @@
                         type: String(type || '').trim(),
                         location: String(location || '').trim(),
                         description: String(description || '').trim(),
-                        status: String(status || '').trim() || 'active',
+                        status: String(status || '').trim() || 'disponible',
                         endpoint_url: String(endpointUrl || '').trim()
                     })
                 });
