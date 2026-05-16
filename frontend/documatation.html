@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documatation - IntelliBuild</title>
+  <title>Guide d’utilisation - IntelliBuild</title>
   <script src="config.js"></script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="theme.css">
@@ -49,22 +49,28 @@
       min-height: 100vh;
       padding: 140px 20px 80px;
       background:
-        linear-gradient(180deg, rgba(8, 17, 31, 0.22), rgba(8, 17, 31, 0.05)),
-        url("https://images.unsplash.com/photo-1497366754035-f200968a6e72") center/cover fixed no-repeat;
+        linear-gradient(180deg, rgba(15, 23, 42, 0.48), rgba(15, 23, 42, 0.48)),
+        url("https://images.pexels.com/photos/4040649/pexels-photo-4040649.jpeg")  no-repeat center center;
+      background-size: cover;
     }
 
     .doc-shell {
       width: min(1240px, 100%);
       margin: 0 auto;
       display: grid;
-      gap: 24px;
+      gap: 60px;
     }
 
     .doc-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.55fr);
-      gap: 24px;
+      grid-template-columns: 1fr;
+      gap: 60px;
       align-items: start;
+    }
+
+    .doc-content {
+      display: grid;
+      gap: 40px;
     }
 
     .page-hero {
@@ -112,7 +118,6 @@
     }
 
     .doc-card,
-    .doc-sidebar,
     .doc-step-card,
     .doc-role-card,
     .doc-faq-card {
@@ -123,9 +128,8 @@
       backdrop-filter: blur(20px);
     }
 
-    .doc-card,
-    .doc-sidebar {
-      padding: 28px;
+    .doc-card {
+      padding: 32px;
     }
 
     .doc-section-title {
@@ -172,14 +176,14 @@
     .doc-faq-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      margin-top: 18px;
+      gap: 24px;
+      margin-top: 22px;
     }
 
     .doc-step-card,
     .doc-role-card,
     .doc-faq-card {
-      padding: 22px;
+      padding: 24px;
     }
 
     .doc-step-number {
@@ -197,16 +201,9 @@
     .doc-step-card h3,
     .doc-role-card h3,
     .doc-faq-card h3,
-    .doc-sidebar h3 {
-      margin: 0 0 10px;
-      color: #08111f;
-      font-size: 1.15rem;
-    }
-
     .doc-step-card p,
     .doc-role-card p,
-    .doc-faq-card p,
-    .doc-sidebar p {
+    .doc-faq-card p {
       margin: 0;
       color: #41506a;
       line-height: 1.75;
@@ -224,33 +221,6 @@
       background: rgba(8, 17, 31, 0.06);
       border: 1px solid rgba(148, 163, 184, 0.22);
       color: #101a2c;
-    }
-
-    .doc-sidebar {
-      display: grid;
-      gap: 18px;
-      position: sticky;
-      top: 110px;
-    }
-
-    .doc-anchor-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .doc-anchor-list a {
-      display: block;
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.68);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      color: #101a2c;
-      font-weight: 700;
-    }
-
-    .doc-anchor-list a:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 24px rgba(8, 17, 31, 0.12);
     }
 
     .doc-actions {
@@ -297,17 +267,24 @@
       margin: 0 0 0 280px;
     }
 
+    .site-footer {
+      background: rgba(255, 255, 255, 0.92);
+      color: #0f172a;
+      backdrop-filter: blur(14px);
+    }
+
+    .site-footer .brand span,
+    .site-footer > div {
+      color: #0f172a;
+    }
+
     @media (max-width: 980px) {
       .doc-grid {
         grid-template-columns: 1fr;
       }
-
-      .doc-sidebar {
-        position: static;
-      }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 1080px) {
       .doc-step-grid,
       .doc-role-grid,
       .doc-faq-grid {
@@ -317,9 +294,7 @@
       .doc-page {
         padding: 128px 14px 50px;
       }
-    }
 
-    @media (max-width: 900px) {
       html[data-role="user"] .ib-sidebar,
       html[data-role="admin"] .ib-sidebar {
         position: static;
@@ -332,7 +307,7 @@
       html[data-role="admin"] .doc-page,
       html[data-role="admin"] .site-footer {
         width: 100%;
-        margin-left: 0;
+        margin-left: 0 !important;
       }
 
       html[data-role="user"] .doc-page,
@@ -378,22 +353,22 @@
     <section class="page-hero">
       <div class="hero-copy">
         <span class="page-kicker">Guide d’utilisation</span>
-        <h1>Comment utiliser notre application web IntelliBuild</h1>
-        <p>Cette page explique simplement comment naviguer dans la plateforme, se connecter, gérer les objets connectés et utiliser les espaces admin et utilisateur.</p>
+        <h1>Guide d’utilisation IntelliBuild</h1>
+        <p>Comment naviguer dans votre bâtiment intelligent. Cette page vous accompagne dans la découverte de la plateforme pour localiser, interagir et gérer vos ressources connectées au sein du bâtiment.</p>
         <div class="doc-actions">
-          <a id="docHeroPrimary" href="login.html" class="btn primary big">Ouvrir l’application</a>
+          <a id="docHeroPrimary" href="login.html" class="btn primary big">Commencer</a>
           <a id="docHeroSecondary" href="p1.html" class="btn outline big">Retour accueil</a>
         </div>
       </div>
 
       <div class="hero-note-card">
-        <h3 class="side-panel-title">Ce que vous pouvez faire</h3>
+        <h3 class="side-panel-title">Ce guide vous montre</h3>
         <ul class="doc-list">
-          <li>Se connecter avec un compte utilisateur ou administrateur.</li>
-          <li>Consulter le tableau de bord et rechercher rapidement un objet.</li>
-          <li>Ajouter, modifier ou supprimer des objets selon le rôle.</li>
-          <li>Utiliser la page Localisations pour définir une position dans le bâtiment.</li>
-          <li>Suivre l’historique, les notifications et les paramètres.</li>
+          <li>Comment démarrer et accéder à votre espace personnel.</li>
+          <li>Comment rechercher et localiser rapidement un objet.</li>
+          <li>Comment interagir avec les objets connectés.</li>
+          <li>Comment suivre votre historique et vos notifications.</li>
+          <li>Le workflow idéal pour une utilisation simple et efficace.</li>
         </ul>
       </div>
     </section>
@@ -401,138 +376,110 @@
     <div class="doc-grid">
       <div class="doc-content">
         <section id="demarrage" class="doc-card">
-          <h2 class="doc-section-title">1. Démarrage</h2>
-          <p class="doc-copy">Pour commencer, ouvrez la page d’accueil puis cliquez sur Connexion ou Inscription. Une fois connecté, l’application redirige automatiquement vers l’espace correspondant à votre rôle.</p>
+          <h2 class="doc-section-title">1. Démarrage rapide</h2>
+          <p class="doc-copy">Pour commencer, créez un compte ou connectez-vous. L'application vous dirigera vers votre Tableau de Bord personnel.</p>
           <div class="doc-step-grid">
             <article class="doc-step-card">
               <div class="doc-step-number">1</div>
-              <h3>Créer un compte</h3>
-              <p>Utilisez la page Inscription si vous n’avez pas encore de compte dans la plateforme.</p>
+              <h3>Inscription</h3>
+              <p>Créez votre profil en quelques secondes.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">2</div>
-              <h3>Se connecter</h3>
-              <p>Entrez votre email et votre mot de passe sur la page Connexion.</p>
+              <h3>Connexion</h3>
+              <p>Accédez à votre espace sécurisé.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">3</div>
-              <h3>Accéder au dashboard</h3>
-              <p>Après connexion, vous arrivez sur le dashboard admin ou utilisateur.</p>
+              <h3>Langue</h3>
+              <p>Adaptez l'interface selon votre préférence via le sélecteur en haut de page.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">4</div>
-              <h3>Choisir une langue</h3>
-              <p>Le sélecteur de langue est disponible sur plusieurs pages pour adapter l’interface.</p>
+              <h3>Navigation</h3>
+              <p>Une fois connecté, explorez les pages utiles depuis votre espace personnel.</p>
             </article>
           </div>
         </section>
 
         <section id="roles" class="doc-card">
-          <h2 class="doc-section-title">2. Les rôles dans l’application</h2>
-          <div class="doc-role-grid">
-            <article class="doc-role-card">
-              <span class="doc-role-chip">Rôle Admin</span>
-              <h3>Administration complète</h3>
-              <p>L’administrateur peut ajouter des objets, modifier l’inventaire, consulter les localisations, suivre l’activité et gérer les paramètres avancés.</p>
-            </article>
-            <article class="doc-role-card">
-              <span class="doc-role-chip">Rôle Utilisateur</span>
-              <h3>Consultation et suivi</h3>
-              <p>L’utilisateur peut rechercher des objets, voir ses objets, consulter les localisations, lire les notifications et gérer son profil.</p>
-            </article>
-          </div>
-        </section>
-
-        <section id="admin" class="doc-card">
-          <h2 class="doc-section-title">3. Utilisation de l’espace administrateur</h2>
+          <h2 class="doc-section-title">2. Rechercher et Localiser</h2>
+          <p class="doc-copy">Le cœur d'IntelliBuild est son moteur de recherche intelligent :</p>
           <ul class="doc-list">
-            <li>Dashboard: il affiche les statistiques principales, la recherche globale et les objets récents.</li>
-            <li>Ajouter: cette page permet de créer un nouvel objet avec son nom, son type, sa salle et sa description.</li>
-            <li>Objets: vous pouvez rechercher un objet, le modifier ou le supprimer.</li>
-            <li>Localisations: cette page montre une architecture interactive du bâtiment pour choisir une salle.</li>
-            <li>Notifications: vous pouvez suivre les événements importants liés à l’application.</li>
-            <li>Paramètres: l’administrateur y voit les utilisateurs, l’activité et l’historique admin.</li>
+            <li>Recherche sémantique : Tapez simplement le nom ou le type d'un objet (ex: "Capteur", "Imprimante").</li>
+            <li>Localisation 3D : Utilisez la page Localisations pour visualiser l'architecture du bâtiment et sélectionner une zone précise pour filtrer les objets à proximité.</li>
+            <li>État initial : Par défaut, la liste est vide pour vous permettre de lancer une recherche ciblée.</li>
           </ul>
         </section>
 
         <section id="utilisateur" class="doc-card">
-          <h2 class="doc-section-title">4. Utilisation de l’espace utilisateur</h2>
+          <h2 class="doc-section-title">3. Interagir avec les objets</h2>
+          <p class="doc-copy">Une fois l'objet trouvé, vous disposez de plusieurs outils pour l'exploiter :</p>
           <ul class="doc-list">
-            <li>Dashboard utilisateur: il affiche les objets visibles et un accès rapide aux pages utiles.</li>
-            <li>Mes objets: permet de retrouver les objets suivis ou utilisés par l’utilisateur.</li>
-            <li>Localisations utilisateur: permet de consulter ou définir un emplacement dans le bâtiment.</li>
-            <li>Notifications utilisateur: sert à suivre les informations importantes liées à l’activité.</li>
-            <li>Paramètres utilisateur: permet de gérer les informations de profil et certaines préférences.</li>
+            <li>Contrôle en direct : Interagissez avec les objets compatibles (allumer/éteindre, consulter les mesures).</li>
+            <li>Favoris : Ajoutez vos objets fréquents à votre liste de Favoris</li>
+            <li>Signalement : Si un objet ne fonctionne pas correctement, utilisez le bouton "Signaler un problème" pour avertir l'administration.</li>
           </ul>
         </section>
 
         <section id="workflow" class="doc-card">
-          <h2 class="doc-section-title">5. Workflow conseillé</h2>
+          <h2 class="doc-section-title">4. Suivi et Historique</h2>
+          <p class="doc-copy">Gardez une trace de toutes vos activités dans le bâtiment :</p>
+          <ul class="doc-list">
+            <li>Mon Historique : Consultez la liste de vos interactions passées avec les objets.</li>
+            <li>Notifications : Recevez des alertes importantes (disponibilité d'une ressource, maintenance, etc.).</li>
+            <li>Profil : Gérez vos informations personnelles et vos préférences de sécurité.</li>
+          </ul>
+        </section>
+
+        <section id="admin" class="doc-card">
+          <h2 class="doc-section-title">5. Workflow idéal (Utilisateur)</h2>
           <div class="doc-step-grid">
             <article class="doc-step-card">
               <div class="doc-step-number">A</div>
-              <h3>Connexion</h3>
-              <p>Connectez-vous puis vérifiez que vous êtes sur le bon espace selon votre rôle.</p>
+              <h3>Identifier</h3>
+              <p>Recherchez l'objet souhaité via la barre de recherche.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">B</div>
-              <h3>Créer ou rechercher</h3>
-              <p>Un admin peut créer un objet. Un utilisateur peut directement le rechercher.</p>
+              <h3>Se situer</h3>
+              <p>Vérifiez la position de l'objet sur le plan du bâtiment.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">C</div>
-              <h3>Définir la salle</h3>
-              <p>Utilisez la page Localisations pour sélectionner rapidement la bonne zone du bâtiment.</p>
+              <h3>Utiliser</h3>
+              <p>Interagissez avec l'objet selon vos besoins.</p>
             </article>
             <article class="doc-step-card">
               <div class="doc-step-number">D</div>
-              <h3>Suivre l’activité</h3>
-              <p>Consultez ensuite les notifications, l’historique et les paramètres pour garder une bonne visibilité.</p>
+              <h3>Signaler</h3>
+              <p>En cas de panne, envoyez un signalement immédiat.</p>
             </article>
           </div>
         </section>
 
         <section id="faq" class="doc-card">
-          <h2 class="doc-section-title">6. Questions fréquentes</h2>
+          <h2 class="doc-section-title">FAQ (Questions fréquentes)</h2>
           <div class="doc-faq-grid">
             <article class="doc-faq-card">
-              <h3>Je ne peux pas me connecter</h3>
-              <p>Vérifiez votre email, votre mot de passe et utilisez le bouton de réinitialisation si nécessaire.</p>
+              <h3>Comment retrouver mes objets préférés ?</h3>
+              <p>Ils sont regroupés dans l'onglet "Favoris" de votre espace personnel.</p>
             </article>
             <article class="doc-faq-card">
-              <h3>Je ne vois pas les pages admin</h3>
-              <p>Votre compte doit avoir le rôle administrateur. Sinon, l’application vous redirige vers l’espace utilisateur.</p>
+              <h3>Pourquoi je ne vois aucun résultat ?</h3>
+              <p>Assurez-vous d'avoir saisi un mot-clé ou vérifiez que l'objet n'est pas hors-ligne.</p>
             </article>
             <article class="doc-faq-card">
-              <h3>Comment modifier un objet</h3>
-              <p>Ouvrez la page Objets, cliquez sur Modifier puis enregistrez les changements.</p>
+              <h3>Que faire si un objet est en panne ?</h3>
+              <p>Cliquez sur l'objet, puis sur l'icône de signalement pour créer une alerte automatique.</p>
             </article>
             <article class="doc-faq-card">
-              <h3>Comment choisir ma salle</h3>
-              <p>Allez dans Localisations puis cliquez sur une salle dans la vue 3D ou utilisez la sélection rapide.</p>
+              <h3>Comment naviguer dans le bâtiment ?</h3>
+              <p>Utilisez la page Localisations et la barre de recherche pour filtrer les objets proches.</p>
             </article>
           </div>
         </section>
       </div>
-
-      <aside class="doc-sidebar">
-        <div>
-          <h3>Navigation rapide</h3>
-          <div class="doc-anchor-list">
-            <a href="#demarrage">Démarrage</a>
-            <a href="#roles">Rôles</a>
-            <a href="#admin">Espace administrateur</a>
-            <a href="#utilisateur">Espace utilisateur</a>
-            <a href="#workflow">Workflow conseillé</a>
-            <a href="#faq">FAQ</a>
-          </div>
-        </div>
-
-        <div>
-          <h3>Conseils</h3>
-          <p>Pour une bonne démonstration du projet, commencez par vous connecter avec un compte admin, ajoutez quelques objets, puis montrez la recherche et la localisation 3D.</p>
-        </div>
-      </aside>
     </div>
   </div>
 </main>
