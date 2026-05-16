@@ -538,7 +538,7 @@ def review_problem_report(report_id: str, request: Request, data: ProblemReportD
         notification_type = "warning"
     elif decision == "reject":
         if thing_id:
-            updated_thing = _update_reported_thing_state(thing_id, "active", "")
+            updated_thing = _update_reported_thing_state(thing_id, "disponible", "")
             update_fields.update(_extract_thing_snapshot(updated_thing))
             update_fields["status"] = "Refuse - objet remis en service"
         else:
@@ -548,7 +548,7 @@ def review_problem_report(report_id: str, request: Request, data: ProblemReportD
         notification_type = "error"
     else:
         if thing_id:
-            updated_thing = _update_reported_thing_state(thing_id, "active", "")
+            updated_thing = _update_reported_thing_state(thing_id, "disponible", "")
             update_fields.update(_extract_thing_snapshot(updated_thing))
             update_fields["status"] = "Resolu - remis en service"
         else:
