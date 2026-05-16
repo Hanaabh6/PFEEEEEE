@@ -661,6 +661,19 @@
     </section>
   </div>
 
+  <div class="overlay" id="infoOverlay" hidden aria-hidden="true">
+    <div class="overlay-backdrop" id="overlayBackdrop"></div>
+    <section class="overlay-panel" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+      <div class="overlay-head">
+        <div>
+          <h2 class="overlay-title" id="overlayTitle">Details</h2>
+        </div>
+        <button class="overlay-close" id="overlayClose" type="button" aria-label="Fermer">x</button>
+      </div>
+      <div id="overlayBody"></div>
+    </section>
+  </div>
+
   <script src="translations.js"></script>
   <script>
     (function () {
@@ -700,6 +713,11 @@
       const editSave = document.getElementById('editSave');
       const editSubtitle = document.getElementById('editSubtitle');
       const editRole = document.getElementById('editRole');
+      const infoOverlay = document.getElementById('infoOverlay');
+      const overlayBackdrop = document.getElementById('overlayBackdrop');
+      const overlayClose = document.getElementById('overlayClose');
+      const overlayTitle = document.getElementById('overlayTitle');
+      const overlayBody = document.getElementById('overlayBody');
 
       let users = [];
       let selectedUser = null;
@@ -910,6 +928,94 @@
         selectedUser = null;
       }
 
+      function openInfoOverlay(title, htmlContent) {
+        if (!infoOverlay) return;
+        overlayTitle.textContent = title;
+        overlayBody.innerHTML = htmlContent;
+        infoOverlay.hidden = false;
+        infoOverlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeInfoOverlay() {
+        if (!infoOverlay) return;
+        infoOverlay.hidden = true;
+        infoOverlay.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+
+      window.openOverlay = openInfoOverlay;
+
+      function escapeHistoryCell(value) {
+        return escapeHtml(String(value == null ? '-' : value));
+      }
+
+      function renderAdminHistoryRows(history) {
+        if (!history.length) {
+          return '<tr><td colspan="4" class="muted" style="padding:20px;text-align:center;">Aucun historique admin disponible.</td></tr>';
+        }
+
+        return history.map(function (item) {
+          const status = String(item && item.status ? item.status : '-');
+          const success = status.toLowerCase().includes('succes');
+          return `
+            <tr>
+              <td style="padding:12px 10px;white-space:nowrap;">${escapeHistoryCell(item && (item.date || item.created_at))}</td>
+              <td style="padding:12px 10px;font-weight:800;color:#0f172a;">${escapeHistoryCell(item && item.action)}</td>
+              <td style="padding:12px 10px;">${escapeHistoryCell(item && item.detail)}</td>
+              <td style="padding:12px 10px;">
+                <span style="display:inline-block;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:800;${success ? 'background:#d1fae5;color:#065f46;' : 'background:#fee2e2;color:#b91c1c;'}">
+                  ${escapeHistoryCell(status)}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function buildAdminHistoryHtml(history) {
+        return `
+          <div class="detail-section" style="margin-top:0;">
+            <h3>Historique admin</h3>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th>Detail</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>${renderAdminHistoryRows(history)}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      async function fetchAdminHistory() {
+        const response = await fetch(`${apiBase}/admin/history?limit=200`, {
+          method: 'GET',
+          headers: authHeaders()
+        });
+        const data = await response.json().catch(function () { return []; });
+        if (!response.ok) {
+          throw new Error(String(data && data.detail ? data.detail : 'Impossible de charger l\'historique admin.'));
+        }
+        return Array.isArray(data) ? data : [];
+      }
+
+      async function openHistoryOverlayView() {
+        openInfoOverlay('Historique admin', '<div class="muted" style="padding:20px;">Chargement...</div>');
+        try {
+          const history = await fetchAdminHistory();
+          overlayBody.innerHTML = buildAdminHistoryHtml(history);
+        } catch (error) {
+          overlayBody.innerHTML = `<div class="detail-empty" style="color:#b91c1c;">${escapeHtml(String(error && error.message ? error.message : "Impossible de charger l'historique admin."))}</div>`;
+        }
+      }
+
       function openEditOverlay(user) {
         selectedUser = user;
         editSubtitle.textContent = `${user.display_name} • ${user.email}`;
@@ -1100,6 +1206,14 @@
       editBackdrop.addEventListener('click', closeEditOverlay);
       editClose.addEventListener('click', closeEditOverlay);
       editCancel.addEventListener('click', closeEditOverlay);
+      document.addEventListener('click', function (event) {
+        const historyTrigger = event.target && event.target.closest ? event.target.closest('#openHistoryOverlay') : null;
+        if (!historyTrigger) return;
+        event.preventDefault();
+        openHistoryOverlayView();
+      });
+      if (overlayBackdrop) overlayBackdrop.addEventListener('click', closeInfoOverlay);
+      if (overlayClose) overlayClose.addEventListener('click', closeInfoOverlay);
       editSave.addEventListener('click', function () {
         if (!selectedUser) return;
         updateUserRole(selectedUser, editRole.value)
@@ -1109,10 +1223,13 @@
       document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && !detailOverlay.hidden) closeOverlay();
         if (event.key === 'Escape' && !editOverlay.hidden) closeEditOverlay();
+        if (event.key === 'Escape' && infoOverlay && !infoOverlay.hidden) closeInfoOverlay();
       });
 
       loadUsers();
     })();
   </script>
+  <script src="sidebar-overlay-active.js"></script>
+  <script src="admin-reports.js?v=20260428b"></script>
 </body>
 </html>

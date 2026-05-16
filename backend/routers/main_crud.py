@@ -314,12 +314,16 @@ def _reindex_thing(item: dict) -> None:
 def add_thing(request: Request, data: AddThingRequest = Body(...)):
     require_admin(request)
     try:
-        duplicate = _find_thing_with_same_name(data.name)
+        safe_name = str(data.name or "").strip()
+        if not safe_name:
+            raise HTTPException(status_code=400, detail="Le nom de l'objet est obligatoire.")
+
+        duplicate = _find_thing_with_same_name(safe_name)
         if duplicate:
-            duplicate_name = str(duplicate.get("name") or data.name).strip()
+            duplicate_name = str(duplicate.get("name") or safe_name).strip() or safe_name
             raise HTTPException(status_code=409, detail=f"Un objet avec le nom '{duplicate_name}' existe deja.")
 
-        location_room = _canonical_room_name(data.location.strip())
+        location_room = _canonical_room_name(str(data.location).strip())
         coords = _coords_from_room(location_room)
         status = _canonical_status(data.status)
         remote_control = _build_remote_control(data.endpoint_url, data.type)
@@ -329,8 +333,8 @@ def add_thing(request: Request, data: AddThingRequest = Body(...)):
             "@context": "https://schema.org",
             "@type": "Product",
             "id": str(uuid.uuid4())[:8],
-            "name": data.name,
-            "search_name_norm": _normalize_text(data.name),
+            "name": safe_name,
+            "search_name_norm": _normalize_text(safe_name),
             "type": data.type,
             "description": data.description,
             "status": status,
@@ -472,6 +476,15 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
         if not existing:
             raise HTTPException(status_code=404, detail="Objet non trouvé")
 
+        safe_name = str(data.name or "").strip()
+        if not safe_name:
+            raise HTTPException(status_code=400, detail="Le nom de l'objet est obligatoire.")
+
+        duplicate = _find_thing_with_same_name(safe_name, exclude_id=thing_id)
+        if duplicate:
+            duplicate_name = str(duplicate.get("name") or safe_name).strip() or safe_name
+            raise HTTPException(status_code=409, detail=f"Un objet avec le nom '{duplicate_name}' existe deja.")
+
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
         status = _canonical_status(data.status)
@@ -479,8 +492,8 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
         potential_actions = _build_potential_actions(data.endpoint_url, data.type)
 
         updated_fields = {
-            "name": data.name,
-            "search_name_norm": _normalize_text(data.name),
+            "name": safe_name,
+            "search_name_norm": _normalize_text(safe_name),
             "type": data.type,
             "description": data.description,
             "status": status,

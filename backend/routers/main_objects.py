@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from ..base import things_collection
 from .main_auth import require_admin
-from .main_localisation import canonical_room_name as _canonical_room_name, coords_from_room as _coords_from_room
+from .main_crud import _find_thing_with_same_name
+from .main_localisation import ROOM_DATA, canonical_room_name as _canonical_room_name, coords_from_room as _coords_from_room
 
 objects_router = APIRouter(tags=["objects"])
 
@@ -151,6 +152,17 @@ def _normalize_text(text: str) -> str:
     value = unicodedata.normalize("NFD", value)
     return "".join(ch for ch in value if unicodedata.category(ch) != "Mn")
 
+
+def _clean_text(text: str) -> str:
+    return str(text or "").strip()
+
+
+def _resolve_known_room(room: str) -> tuple[str, dict[str, float]]:
+    room_canonical = _canonical_room_name(_clean_text(room))
+    if not room_canonical or room_canonical not in ROOM_DATA:
+        raise HTTPException(status_code=400, detail="Salle invalide. Veuillez choisir une salle existante.")
+    return room_canonical, _coords_from_room(room_canonical)
+
 @objects_router.post("/objects/add/{obj_type}")
 def add_object_from_template(obj_type: str, data: AddObjectFromTemplateRequest, admin=Depends(require_admin)):
     """
@@ -160,16 +172,24 @@ def add_object_from_template(obj_type: str, data: AddObjectFromTemplateRequest, 
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
 
-    room_canonical = _canonical_room_name(data.location)
-    coords = _coords_from_room(room_canonical)
+    safe_name = _clean_text(data.name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Le nom de l'objet est obligatoire.")
+
+    duplicate = _find_thing_with_same_name(safe_name)
+    if duplicate:
+        duplicate_name = str(duplicate.get("name") or safe_name).strip() or safe_name
+        raise HTTPException(status_code=409, detail=f"Un objet avec le nom '{duplicate_name}' existe deja.")
+
+    room_canonical, coords = _resolve_known_room(data.location)
     endpoint = template.get("endpoint", "")
 
     new_item = {
         "@context": "https://schema.org",
         "@type": "Product",
         "id": str(uuid.uuid4())[:8],
-        "name": data.name,
-        "search_name_norm": _normalize_text(data.name),
+        "name": safe_name,
+        "search_name_norm": _normalize_text(safe_name),
         "type": template["type"],
         "description": template.get("description", ""),
         "status": "disponible",
@@ -240,7 +260,7 @@ def add_object_from_template(obj_type: str, data: AddObjectFromTemplateRequest, 
         
         return {
             "success": True,
-            "message": f"Objet {data.name} ajouté avec succès",
+            "message": f"Objet {safe_name} ajouté avec succès",
             "id": new_item["id"]
         }
     except Exception as e:

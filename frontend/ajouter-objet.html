@@ -103,16 +103,10 @@
 
                     <div class="field-card">
                         <label class="font-bold text-gray-700">3. Localisation (Salle)</label>
-                        <select id="objLoc" required class="field-select">
-                            <option value="">-- Choisir une salle --</option>
-                            <optgroup label="Salles">
-                                <option value="Accueil">Accueil</option>
-                                <option value="Cafétéria">Cafétéria</option>
-                                <option value="Bureau RH">Bureau RH</option>
-                                <option value="Salle de Réunion">Salle de Réunion</option>
-                                <option value="Labo IoT A">Labo IoT A</option>
-                            </optgroup>
+                        <select id="objLoc" required class="field-select" disabled>
+                            <option value="">Chargement des salles...</option>
                         </select>
+                        <p id="roomsHelp" class="mt-2 text-sm text-gray-500">La liste des salles est chargée depuis l'architecture du bâtiment.</p>
                     </div>
 
                     <div id="descPreviewBox" class="field-card bg-gray-50 opacity-75">
@@ -140,81 +134,188 @@
         const selectedTypePill = document.getElementById('selectedTypePill');
         const templateDesc = document.getElementById('templateDesc');
         const addForm = document.getElementById('addForm');
-        
+        const objNameInput = document.getElementById('objName');
+        const objLocSelect = document.getElementById('objLoc');
+        const roomsHelp = document.getElementById('roomsHelp');
+        const submitButton = addForm.querySelector('button[type="submit"]');
+
         let selectedTemplateId = null;
 
         const TEMPLATES = [
-            { id: 'lamp', label: 'Éclairage', icon: 'fas fa-lightbulb', desc: 'Système d\'éclairage intelligent.' },
-            { id: 'microphone', label: 'Microphone', icon: 'fas fa-microphone', desc: 'Audio d\'entrée (conférence, mural).' },
+            { id: 'lamp', label: 'Éclairage', icon: 'fas fa-lightbulb', desc: "Système d'éclairage intelligent." },
+            { id: 'microphone', label: 'Microphone', icon: 'fas fa-microphone', desc: "Audio d'entrée (conférence, mural)." },
             { id: 'camera', label: 'Caméra', icon: 'fas fa-camera', desc: 'Surveillance vidéo IP.' },
-            { id: 'sensor', label: 'Capteur', icon: 'fas fa-rss', desc: 'Détection environnementale (temp, présence).' },
+            { id: 'sensor', label: 'Capteur', icon: 'fas fa-rss', desc: 'Détection environnementale (température, présence).' },
             { id: 'ac', label: 'Climatiseur', icon: 'fas fa-snowflake', desc: 'Régulation thermique HVAC.' },
             { id: 'switch', label: 'Interrupteur', icon: 'fas fa-toggle-on', desc: 'Contrôle on/off distant.' },
             { id: 'coffee', label: 'Machine Café', icon: 'fas fa-coffee', desc: 'Distributeur de boissons connecté.' },
             { id: 'tv', label: 'Télévision', icon: 'fas fa-tv', desc: 'Écran et affichage dynamique.' },
             { id: 'scanner', label: 'Scanner', icon: 'fas fa-print', desc: 'Numérisation de documents réseau.' },
-            { id: 'button', label: 'Bouton', icon: 'fas fa-fingerprint', desc: 'Appel d\'urgence ou sonnette.' },
-            { id: 'access', label: 'Accès', icon: 'fas fa-id-card', desc: 'Lecteur de badge / Serrure.' },
+            { id: 'button', label: 'Bouton', icon: 'fas fa-fingerprint', desc: "Appel d'urgence ou sonnette." },
+            { id: 'access', label: 'Accès', icon: 'fas fa-id-card', desc: 'Lecteur de badge / serrure.' },
             { id: 'alarm', label: 'Alarme', icon: 'fas fa-exclamation-triangle', desc: 'Sécurité et sirène.' },
-            { id: 'printer', label: 'Imprimante', icon: 'fas fa-print', desc: 'Impression laser/jet d\'encre.' },
+            { id: 'printer', label: 'Imprimante', icon: 'fas fa-print', desc: "Impression laser/jet d'encre." },
             { id: 'speaker', label: 'Haut-parleur', icon: 'fas fa-volume-up', desc: 'Diffusion sonore et annonces.' }
         ];
 
-        function renderTemplates() {
-            typeShowcase.innerHTML = TEMPLATES.map(t => `
-                <div class="type-card" data-id="${t.id}">
-                    <div class="type-icon"><i class="${t.icon}"></i></div>
-                    <div class="font-bold">${t.label}</div>
-                </div>
-            `).join('');
+        function createOption(value, label) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            return option;
+        }
 
-            document.querySelectorAll('.type-card').forEach(card => {
-                card.onclick = () => {
+        function setRoomsLoadingState(label) {
+            objLocSelect.disabled = true;
+            objLocSelect.innerHTML = '';
+            objLocSelect.appendChild(createOption('', label));
+        }
+
+        function populateRoomOptions(floors) {
+            const seenRooms = new Set();
+            let roomCount = 0;
+
+            objLocSelect.innerHTML = '';
+            objLocSelect.appendChild(createOption('', '-- Choisir une salle --'));
+
+            floors.forEach(function (floor) {
+                const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
+                const cleanRooms = rooms
+                    .map(function (room) { return String(room || '').trim(); })
+                    .filter(Boolean)
+                    .filter(function (room) {
+                        const roomKey = room.toLowerCase();
+                        if (seenRooms.has(roomKey)) return false;
+                        seenRooms.add(roomKey);
+                        return true;
+                    });
+
+                if (!cleanRooms.length) return;
+
+                const group = document.createElement('optgroup');
+                group.label = String((floor && floor.name) || 'Salles');
+
+                cleanRooms.forEach(function (room) {
+                    group.appendChild(createOption(room, room));
+                    roomCount += 1;
+                });
+
+                objLocSelect.appendChild(group);
+            });
+
+            if (!roomCount) {
+                setRoomsLoadingState('Aucune salle disponible');
+                roomsHelp.textContent = "Aucune salle n'a été trouvée dans l'architecture du bâtiment.";
+                return;
+            }
+
+            objLocSelect.disabled = false;
+            roomsHelp.textContent = `${roomCount} salles disponibles chargées depuis l'architecture du bâtiment.`;
+        }
+
+        async function loadRooms() {
+            setRoomsLoadingState('Chargement des salles...');
+            roomsHelp.textContent = "La liste des salles est chargée depuis l'architecture du bâtiment.";
+
+            try {
+                const response = await fetch(`${apiBase}/localisation/layout`, { method: 'GET' });
+                const data = await response.json().catch(function () { return {}; });
+                if (!response.ok) {
+                    throw new Error((data && data.detail) || 'Impossible de charger les salles.');
+                }
+
+                const floors = Array.isArray(data && data.floors) ? data.floors : [];
+                populateRoomOptions(floors);
+            } catch (error) {
+                console.error('Erreur chargement salles:', error);
+                setRoomsLoadingState('Impossible de charger les salles');
+                roomsHelp.textContent = "Impossible de charger les salles. Vérifiez le serveur puis rechargez la page.";
+            }
+        }
+
+        function renderTemplates() {
+            typeShowcase.innerHTML = TEMPLATES.map(function (template) {
+                return `
+                    <div class="type-card" data-id="${template.id}">
+                        <div class="type-icon"><i class="${template.icon}"></i></div>
+                        <div class="font-bold">${template.label}</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.querySelectorAll('.type-card').forEach(function (card) {
+                card.onclick = function () {
                     selectedTemplateId = card.dataset.id;
-                    const t = TEMPLATES.find(x => x.id === selectedTemplateId);
-                    
-                    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
+                    const template = TEMPLATES.find(function (item) { return item.id === selectedTemplateId; });
+
+                    document.querySelectorAll('.type-card').forEach(function (node) {
+                        node.classList.remove('active');
+                    });
                     card.classList.add('active');
-                    
-                    selectedTypePill.textContent = `Template: ${t.label}`;
+
+                    selectedTypePill.textContent = `Template: ${template.label}`;
                     selectedTypePill.classList.add('active');
-                    templateDesc.textContent = t.desc;
+                    templateDesc.textContent = template.desc;
                 };
             });
         }
 
-        addForm.onsubmit = async (e) => {
-            e.preventDefault();
-            if (!selectedTemplateId) return alert('Choisissez un template.');
+        addForm.onsubmit = async function (event) {
+            event.preventDefault();
 
-            const data = {
-                name: document.getElementById('objName').value,
-                location: document.getElementById('objLoc').value
-            };
+            if (!selectedTemplateId) {
+                alert('Choisissez un template.');
+                return;
+            }
+
+            const safeName = String(objNameInput.value || '').trim();
+            const safeLocation = String(objLocSelect.value || '').trim();
+
+            if (!safeName) {
+                alert("Veuillez saisir un nom d'objet.");
+                objNameInput.focus();
+                return;
+            }
+
+            if (!safeLocation) {
+                alert('Veuillez choisir une salle.');
+                objLocSelect.focus();
+                return;
+            }
+
+            submitButton.disabled = true;
 
             try {
-                const res = await fetch(`${apiBase}/objects/add/${selectedTemplateId}`, {
+                const response = await fetch(`${apiBase}/objects/add/${selectedTemplateId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        name: safeName,
+                        location: safeLocation
+                    })
                 });
 
-                if (res.ok) {
-                    alert('Objet créé avec succès !');
-                    window.location.href = 'index.html';
-                } else {
-                    const err = await res.json();
-                    alert(err.detail || 'Erreur lors de la création');
+                const payload = await response.json().catch(function () { return {}; });
+                if (!response.ok) {
+                    alert(payload.detail || "Erreur lors de la création de l'objet.");
+                    return;
                 }
-            } catch (e) {
+
+                alert(payload.message || 'Objet créé avec succès !');
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Erreur création objet:', error);
                 alert('Erreur de connexion au serveur');
+            } finally {
+                submitButton.disabled = false;
             }
         };
 
         renderTemplates();
+        loadRooms();
     </script>
 </body>
 </html>
