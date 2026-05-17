@@ -3,122 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IntelliBuild - Ajouter un objet connecté</title>
+    <title>IntelliBuild - Ajouter un objet WoT</title>
     <script src="config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { 
+        body {
             background: url('https://images.pexels.com/photos/4040649/pexels-photo-4040649.jpeg') no-repeat center center fixed;
-            background-size: cover; 
-            display: flex; 
+            background-size: cover;
+            display: flex;
             min-height: 100vh;
             margin: 0;
         }
-        .form-card { 
-            background: rgba(255, 255, 255, 0.9); 
-            backdrop-filter: blur(12px); 
-            border-radius: 24px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2); 
-            border: 1px solid rgba(255,255,255,0.3);
+        .form-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(14px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.35);
         }
-        .type-card {
+        .section-panel {
+            border: 1px solid #dbe3ef;
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: 18px;
+            padding: 20px;
+        }
+        .td-card {
             border: 1px solid #dbe3ef;
             background: #ffffff;
             border-radius: 14px;
-            padding: 15px;
-            text-align: center;
+            padding: 16px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+            min-height: 150px;
         }
-        .type-card:hover {
-            border-color: #34d399;
-            transform: translateY(-2px);
-        }
-        .type-card.active {
+        .td-card:hover {
             border-color: #10b981;
-            background: #ecfdf5;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 14px 24px rgba(15, 23, 42, 0.12);
         }
-        .type-icon {
-            width: 50px;
-            height: 50px;
-            margin: 0 auto 10px;
+        .td-card.active {
+            border-color: #059669;
+            background: #ecfdf5;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+        }
+        .td-icon {
+            width: 42px;
+            height: 42px;
             border-radius: 12px;
             display: grid;
             place-items: center;
-            background: #f1f5f9;
+            background: #e2e8f0;
             color: #0f766e;
-            font-size: 20px;
+            font-size: 18px;
+            flex: 0 0 auto;
         }
-        .type-card.active .type-icon { background: #10b981; color: white; }
-        .field-card {
-            border: 1px solid #dbe3ef;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 14px;
-            padding: 15px;
-            margin-bottom: 15px;
+        .td-card.active .td-icon {
+            background: #10b981;
+            color: #ffffff;
         }
-        .field-input, .field-select {
+        .field-input,
+        .field-select,
+        .field-textarea {
             width: 100%;
             border: 1px solid #cbd5e1;
             border-radius: 11px;
             padding: 12px;
-            margin-top: 5px;
+            margin-top: 6px;
+            background: #ffffff;
         }
-        .selected-type-pill {
-            padding: 6px 15px;
+        .field-input[readonly],
+        .field-textarea[readonly] {
+            background: #f8fafc;
+            color: #334155;
+        }
+        .field-label {
+            font-weight: 800;
+            color: #334155;
+            font-size: 14px;
+        }
+        .capability-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .capability-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
             border-radius: 999px;
-            font-weight: bold;
-            font-size: 13px;
-            background: #e2e8f0;
+            background: #eef2ff;
+            color: #3730a3;
+            font-size: 12px;
+            font-weight: 800;
         }
-        .selected-type-pill.active { background: #dcfce7; color: #065f46; }
+        .capability-pill.action {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .capability-pill.event {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        .status-badge.external {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-badge.bundled {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .json-preview {
+            min-height: 220px;
+            resize: vertical;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .muted-note {
+            color: #64748b;
+            font-size: 13px;
+        }
+        button:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+        @media (max-width: 900px) {
+            .catalog-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body class="flex">
     <script src="sidebar-loader.js"></script>
 
-    <main class="flex-1 p-8">
-        <div class="max-w-4xl mx-auto">
-            <div class="form-card p-10">
-                <h1 class="text-3xl font-black text-gray-800 mb-2">Ajouter un objet IoT</h1>
-                <p class="text-gray-500 mb-8">Standard W3C Thing Description - Sans saisie manuelle de description.</p>
-
-                <div class="mb-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-emerald-900">1. Sélectionnez un type d'objet (Template)</h3>
-                        <span id="selectedTypePill" class="selected-type-pill">Aucun template choisi</span>
+    <main class="flex-1 p-6 md:p-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="form-card p-6 md:p-10">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
+                    <div>
+                        <h1 class="text-3xl font-black text-gray-800 mb-2">Ajouter un objet depuis une Thing Description</h1>
+                        <p class="text-gray-500">Les metadonnees IoT sont chargees automatiquement depuis un catalogue WoT.</p>
                     </div>
-                    <div id="typeShowcase" class="grid grid-cols-3 gap-4">
-                        <!-- Templates generated via JS -->
-                    </div>
+                    <span id="sourceBadge" class="status-badge"><i class="fas fa-circle-notch fa-spin"></i> Chargement</span>
                 </div>
 
+                <section class="section-panel mb-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <h2 class="font-black text-emerald-900 text-lg">1. Objets IoT disponibles</h2>
+                        <button type="button" id="reloadTdBtn" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700">
+                            <i class="fas fa-rotate-right mr-2"></i>Actualiser
+                        </button>
+                    </div>
+                    <div id="catalogStatus" class="muted-note mb-3">Chargement du catalogue WoT...</div>
+                    <div id="tdCatalog" class="catalog-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+                </section>
+
                 <form id="addForm" class="space-y-6">
-                    <div class="field-card">
-                        <label class="font-bold text-gray-700">2. Nom de l'objet</label>
-                        <input type="text" id="objName" placeholder="Ex: Lampe Bureau 302" required class="field-input">
-                    </div>
-
-                    <div class="field-card">
-                        <label class="font-bold text-gray-700">3. Localisation (Salle)</label>
-                        <select id="objLoc" required class="field-select" disabled>
-                            <option value="">Chargement des salles...</option>
-                        </select>
-                        <p id="roomsHelp" class="mt-2 text-sm text-gray-500">La liste des salles est chargée depuis l'architecture du bâtiment.</p>
-                    </div>
-
-                    <div id="descPreviewBox" class="field-card bg-gray-50 opacity-75">
-                        <label class="font-bold text-gray-400">Description W3C TD (Automatique)</label>
-                        <div id="templateDesc" class="mt-2 text-sm text-gray-500 italic">
-                            Sélectionnez un template pour générer la description IoT.
+                    <section class="section-panel">
+                        <h2 class="font-black text-slate-800 text-lg mb-4">2. Donnees extraites de la TD</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label" for="tdTitle">Nom de l'objet dans la TD</label>
+                                <input id="tdTitle" type="text" class="field-input" readonly placeholder="Selectionnez un objet WoT">
+                            </div>
+                            <div>
+                                <label class="field-label" for="tdType">Type</label>
+                                <input id="tdType" type="text" class="field-input" readonly placeholder="Selectionnez un objet WoT">
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="flex gap-4">
-                        <button type="button" onclick="window.location.href='index.html'" class="flex-1 py-4 bg-white border rounded-xl font-bold text-gray-600 hover:bg-gray-50">Annuler</button>
-                        <button type="submit" class="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700">Enregistrer l'objet</button>
+                        <div class="mt-4">
+                            <label class="field-label" for="tdDescription">Description</label>
+                            <textarea id="tdDescription" class="field-textarea" rows="3" readonly placeholder="Selectionnez un objet WoT"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+                            <div>
+                                <label class="field-label">Proprietes</label>
+                                <div id="tdProperties" class="capability-list"></div>
+                            </div>
+                            <div>
+                                <label class="field-label">Actions</label>
+                                <div id="tdActions" class="capability-list"></div>
+                            </div>
+                            <div>
+                                <label class="field-label">Evenements</label>
+                                <div id="tdEvents" class="capability-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="field-label" for="tdJson">Thing Description complete</label>
+                            <textarea id="tdJson" class="field-textarea json-preview" readonly placeholder="Le JSON complet de la TD apparait ici."></textarea>
+                        </div>
+                    </section>
+
+                    <section class="section-panel">
+                        <h2 class="font-black text-slate-800 text-lg mb-4">3. Informations locales Smart Building</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label" for="objLocalName">Nom local unique</label>
+                                <input id="objLocalName" type="text" required maxlength="120" class="field-input" placeholder="Ex: Lampe Bureau 302">
+                                <p class="muted-note mt-2">Le backend refuse automatiquement les doublons.</p>
+                            </div>
+                            <div>
+                                <label class="field-label" for="objFloor">Etage</label>
+                                <select id="objFloor" required class="field-select" disabled>
+                                    <option value="">Chargement des etages...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label" for="objRoom">Salle</label>
+                                <select id="objRoom" required class="field-select" disabled>
+                                    <option value="">Choisissez d'abord un etage</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button type="button" id="cancelBtn" class="flex-1 py-4 bg-white border border-slate-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50">
+                            Annuler
+                        </button>
+                        <button type="submit" id="submitBtn" class="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700">
+                            Enregistrer l'objet
+                        </button>
                     </div>
                 </form>
             </div>
@@ -130,33 +254,228 @@
         const token = localStorage.getItem('userToken');
         if (!token) window.location.href = "login.html";
 
-        const typeShowcase = document.getElementById('typeShowcase');
-        const selectedTypePill = document.getElementById('selectedTypePill');
-        const templateDesc = document.getElementById('templateDesc');
+        const sourceBadge = document.getElementById('sourceBadge');
+        const catalogStatus = document.getElementById('catalogStatus');
+        const tdCatalog = document.getElementById('tdCatalog');
+        const reloadTdBtn = document.getElementById('reloadTdBtn');
         const addForm = document.getElementById('addForm');
-        const objNameInput = document.getElementById('objName');
-        const objLocSelect = document.getElementById('objLoc');
-        const roomsHelp = document.getElementById('roomsHelp');
-        const submitButton = addForm.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
 
-        let selectedTemplateId = null;
+        const tdTitle = document.getElementById('tdTitle');
+        const tdType = document.getElementById('tdType');
+        const tdDescription = document.getElementById('tdDescription');
+        const tdProperties = document.getElementById('tdProperties');
+        const tdActions = document.getElementById('tdActions');
+        const tdEvents = document.getElementById('tdEvents');
+        const tdJson = document.getElementById('tdJson');
 
-        const TEMPLATES = [
-            { id: 'lamp', label: 'Éclairage', icon: 'fas fa-lightbulb', desc: "Système d'éclairage intelligent." },
-            { id: 'microphone', label: 'Microphone', icon: 'fas fa-microphone', desc: "Audio d'entrée (conférence, mural)." },
-            { id: 'camera', label: 'Caméra', icon: 'fas fa-camera', desc: 'Surveillance vidéo IP.' },
-            { id: 'sensor', label: 'Capteur', icon: 'fas fa-rss', desc: 'Détection environnementale (température, présence).' },
-            { id: 'ac', label: 'Climatiseur', icon: 'fas fa-snowflake', desc: 'Régulation thermique HVAC.' },
-            { id: 'switch', label: 'Interrupteur', icon: 'fas fa-toggle-on', desc: 'Contrôle on/off distant.' },
-            { id: 'coffee', label: 'Machine Café', icon: 'fas fa-coffee', desc: 'Distributeur de boissons connecté.' },
-            { id: 'tv', label: 'Télévision', icon: 'fas fa-tv', desc: 'Écran et affichage dynamique.' },
-            { id: 'scanner', label: 'Scanner', icon: 'fas fa-print', desc: 'Numérisation de documents réseau.' },
-            { id: 'button', label: 'Bouton', icon: 'fas fa-fingerprint', desc: "Appel d'urgence ou sonnette." },
-            { id: 'access', label: 'Accès', icon: 'fas fa-id-card', desc: 'Lecteur de badge / serrure.' },
-            { id: 'alarm', label: 'Alarme', icon: 'fas fa-exclamation-triangle', desc: 'Sécurité et sirène.' },
-            { id: 'printer', label: 'Imprimante', icon: 'fas fa-print', desc: "Impression laser/jet d'encre." },
-            { id: 'speaker', label: 'Haut-parleur', icon: 'fas fa-volume-up', desc: 'Diffusion sonore et annonces.' }
-        ];
+        const objLocalName = document.getElementById('objLocalName');
+        const objFloor = document.getElementById('objFloor');
+        const objRoom = document.getElementById('objRoom');
+
+        let catalogItems = [];
+        let currentTdId = '';
+        let currentTd = null;
+        let layoutFloors = [];
+
+        function authHeaders(extra) {
+            return Object.assign({ Authorization: `Bearer ${token}` }, extra || {});
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function keysOf(value) {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                return Object.keys(value);
+            }
+            return [];
+        }
+
+        function getIconForType(type) {
+            const normalized = String(type || '').toLowerCase();
+            if (normalized.includes('eclairage') || normalized.includes('light')) return 'fa-lightbulb';
+            if (normalized.includes('capteur') || normalized.includes('sensor')) return 'fa-wave-square';
+            if (normalized.includes('television') || normalized.includes('tv')) return 'fa-tv';
+            if (normalized.includes('acces') || normalized.includes('badge')) return 'fa-id-card';
+            if (normalized.includes('imprimante') || normalized.includes('printer')) return 'fa-print';
+            return 'fa-microchip';
+        }
+
+        function setSourceBadge(source) {
+            const clean = String(source || '').toLowerCase();
+            sourceBadge.className = 'status-badge ' + (clean === 'external' ? 'external' : 'bundled');
+            sourceBadge.innerHTML = clean === 'external'
+                ? '<i class="fas fa-cloud-arrow-down"></i> Service WoT externe'
+                : '<i class="fas fa-database"></i> Catalogue de secours';
+        }
+
+        function renderChips(container, items, mode) {
+            const cleanItems = (Array.isArray(items) ? items : []).filter(Boolean);
+            if (!cleanItems.length) {
+                container.innerHTML = '<span class="muted-note">Aucun</span>';
+                return;
+            }
+
+            const cls = mode === 'action' ? ' action' : (mode === 'event' ? ' event' : '');
+            const icon = mode === 'action' ? 'fa-bolt' : (mode === 'event' ? 'fa-bell' : 'fa-tag');
+            container.innerHTML = cleanItems.map(function (item) {
+                return `<span class="capability-pill${cls}"><i class="fas ${icon}"></i>${escapeHtml(item)}</span>`;
+            }).join('');
+        }
+
+        function extractType(td, summary) {
+            if (summary && summary.type) return String(summary.type);
+            if (td && td.category) return String(td.category);
+            const typeValue = td && td['@type'];
+            if (Array.isArray(typeValue)) {
+                const clean = typeValue.find(function (item) {
+                    const value = String(item || '').toLowerCase();
+                    return value && value !== 'product' && value !== 'thing';
+                });
+                return clean || 'Objet IoT';
+            }
+            if (typeof typeValue === 'string' && !['product', 'thing'].includes(typeValue.toLowerCase())) {
+                return typeValue;
+            }
+            return 'Objet IoT';
+        }
+
+        function resetTdDetails() {
+            currentTdId = '';
+            currentTd = null;
+            tdTitle.value = '';
+            tdType.value = '';
+            tdDescription.value = '';
+            tdJson.value = '';
+            renderChips(tdProperties, [], 'property');
+            renderChips(tdActions, [], 'action');
+            renderChips(tdEvents, [], 'event');
+        }
+
+        function renderCatalog() {
+            if (!catalogItems.length) {
+                tdCatalog.innerHTML = '<div class="section-panel text-slate-500">Aucune Thing Description disponible.</div>';
+                return;
+            }
+
+            tdCatalog.innerHTML = catalogItems.map(function (item) {
+                const active = item.td_id === currentTdId ? ' active' : '';
+                const properties = Array.isArray(item.properties) ? item.properties.length : 0;
+                const actions = Array.isArray(item.actions) ? item.actions.length : 0;
+                return `
+                    <article class="td-card${active}" data-td-id="${escapeHtml(item.td_id)}">
+                        <div class="flex items-start gap-3 mb-3">
+                            <div class="td-icon"><i class="fas ${getIconForType(item.type)}"></i></div>
+                            <div>
+                                <h3 class="font-black text-slate-800 leading-tight">${escapeHtml(item.title || item.name || item.td_id)}</h3>
+                                <p class="text-sm text-emerald-700 font-bold mt-1">${escapeHtml(item.type || 'Objet IoT')}</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-600 line-clamp-3">${escapeHtml(item.description || 'Description non fournie.')}</p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+                            <span>${properties} proprietes</span>
+                            <span>${actions} actions</span>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+            tdCatalog.querySelectorAll('.td-card').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    selectTd(card.getAttribute('data-td-id'));
+                });
+            });
+        }
+
+        async function loadCatalog() {
+            resetTdDetails();
+            tdCatalog.innerHTML = '';
+            catalogStatus.textContent = 'Chargement du catalogue WoT...';
+            sourceBadge.className = 'status-badge';
+            sourceBadge.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Chargement';
+            reloadTdBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${apiBase}/wot/things`, {
+                    headers: authHeaders()
+                });
+                const payload = await response.json().catch(function () { return {}; });
+                if (!response.ok) {
+                    throw new Error(payload.detail || 'Impossible de charger les Thing Descriptions.');
+                }
+
+                catalogItems = Array.isArray(payload.items) ? payload.items : [];
+                setSourceBadge(payload.source);
+                catalogStatus.textContent = `${catalogItems.length} Thing Descriptions disponibles.`;
+                if (payload.fallback_reason) {
+                    catalogStatus.textContent += ' Catalogue externe indisponible, bascule locale active.';
+                }
+                renderCatalog();
+            } catch (error) {
+                console.error('Erreur catalogue WoT:', error);
+                catalogItems = [];
+                catalogStatus.textContent = error.message || 'Erreur de chargement du catalogue WoT.';
+                tdCatalog.innerHTML = '<div class="section-panel text-red-600 font-bold">Impossible de charger les objets WoT.</div>';
+                setSourceBadge('bundled');
+            } finally {
+                reloadTdBtn.disabled = false;
+            }
+        }
+
+        async function selectTd(tdId) {
+            if (!tdId) return;
+
+            currentTdId = tdId;
+            currentTd = null;
+            renderCatalog();
+            tdTitle.value = 'Chargement...';
+            tdType.value = 'Chargement...';
+            tdDescription.value = '';
+            tdJson.value = '';
+            renderChips(tdProperties, [], 'property');
+            renderChips(tdActions, [], 'action');
+            renderChips(tdEvents, [], 'event');
+
+            try {
+                const response = await fetch(`${apiBase}/wot/things/${encodeURIComponent(tdId)}/td`, {
+                    headers: authHeaders()
+                });
+                const payload = await response.json().catch(function () { return {}; });
+                if (!response.ok) {
+                    throw new Error(payload.detail || 'Impossible de recuperer la TD complete.');
+                }
+
+                const td = payload.thingDescription || {};
+                const summary = payload.summary || {};
+                currentTd = td;
+
+                const properties = keysOf(td.properties).length ? keysOf(td.properties) : (summary.properties || []);
+                const actions = keysOf(td.actions).length ? keysOf(td.actions) : (summary.actions || []);
+                const events = keysOf(td.events).length ? keysOf(td.events) : (summary.events || []);
+                const title = summary.title || td.title || td.name || tdId;
+
+                tdTitle.value = title;
+                tdType.value = extractType(td, summary);
+                tdDescription.value = summary.description || td.description || '';
+                tdJson.value = JSON.stringify(td, null, 2);
+                renderChips(tdProperties, properties, 'property');
+                renderChips(tdActions, actions, 'action');
+                renderChips(tdEvents, events, 'event');
+            } catch (error) {
+                console.error('Erreur TD:', error);
+                alert(error.message || 'Erreur lors de la recuperation de la TD.');
+                resetTdDetails();
+                renderCatalog();
+            }
+        }
 
         function createOption(value, label) {
             const option = document.createElement('option');
@@ -165,57 +484,43 @@
             return option;
         }
 
-        function setRoomsLoadingState(label) {
-            objLocSelect.disabled = true;
-            objLocSelect.innerHTML = '';
-            objLocSelect.appendChild(createOption('', label));
-        }
+        function populateFloors(floors) {
+            layoutFloors = Array.isArray(floors) ? floors : [];
+            objFloor.innerHTML = '';
+            objFloor.appendChild(createOption('', '-- Choisir un etage --'));
 
-        function populateRoomOptions(floors) {
-            const seenRooms = new Set();
-            let roomCount = 0;
-
-            objLocSelect.innerHTML = '';
-            objLocSelect.appendChild(createOption('', '-- Choisir une salle --'));
-
-            floors.forEach(function (floor) {
-                const rooms = Array.isArray(floor && floor.rooms) ? floor.rooms : [];
-                const cleanRooms = rooms
-                    .map(function (room) { return String(room || '').trim(); })
-                    .filter(Boolean)
-                    .filter(function (room) {
-                        const roomKey = room.toLowerCase();
-                        if (seenRooms.has(roomKey)) return false;
-                        seenRooms.add(roomKey);
-                        return true;
-                    });
-
-                if (!cleanRooms.length) return;
-
-                const group = document.createElement('optgroup');
-                group.label = String((floor && floor.name) || 'Salles');
-
-                cleanRooms.forEach(function (room) {
-                    group.appendChild(createOption(room, room));
-                    roomCount += 1;
-                });
-
-                objLocSelect.appendChild(group);
+            layoutFloors.forEach(function (floor) {
+                objFloor.appendChild(createOption(String(floor.name || ''), String(floor.name || 'Etage')));
             });
 
-            if (!roomCount) {
-                setRoomsLoadingState('Aucune salle disponible');
-                roomsHelp.textContent = "Aucune salle n'a été trouvée dans l'architecture du bâtiment.";
-                return;
-            }
+            objFloor.disabled = layoutFloors.length === 0;
+            objRoom.innerHTML = '';
+            objRoom.appendChild(createOption('', "Choisissez d'abord un etage"));
+            objRoom.disabled = true;
+        }
 
-            objLocSelect.disabled = false;
-            roomsHelp.textContent = `${roomCount} salles disponibles chargées depuis l'architecture du bâtiment.`;
+        function populateRoomsForFloor(floorName) {
+            const selectedFloor = layoutFloors.find(function (floor) {
+                return String(floor.name || '') === String(floorName || '');
+            });
+
+            objRoom.innerHTML = '';
+            objRoom.appendChild(createOption('', '-- Choisir une salle --'));
+
+            const rooms = selectedFloor && Array.isArray(selectedFloor.rooms) ? selectedFloor.rooms : [];
+            rooms.forEach(function (room) {
+                const cleanRoom = String(room || '').trim();
+                if (cleanRoom) objRoom.appendChild(createOption(cleanRoom, cleanRoom));
+            });
+
+            objRoom.disabled = rooms.length === 0;
         }
 
         async function loadRooms() {
-            setRoomsLoadingState('Chargement des salles...');
-            roomsHelp.textContent = "La liste des salles est chargée depuis l'architecture du bâtiment.";
+            objFloor.disabled = true;
+            objRoom.disabled = true;
+            objFloor.innerHTML = '<option value="">Chargement des etages...</option>';
+            objRoom.innerHTML = '<option value="">Chargement des salles...</option>';
 
             try {
                 const response = await fetch(`${apiBase}/localisation/layout`, { method: 'GET' });
@@ -224,97 +529,85 @@
                     throw new Error((data && data.detail) || 'Impossible de charger les salles.');
                 }
 
-                const floors = Array.isArray(data && data.floors) ? data.floors : [];
-                populateRoomOptions(floors);
+                populateFloors(Array.isArray(data.floors) ? data.floors : []);
             } catch (error) {
                 console.error('Erreur chargement salles:', error);
-                setRoomsLoadingState('Impossible de charger les salles');
-                roomsHelp.textContent = "Impossible de charger les salles. Vérifiez le serveur puis rechargez la page.";
+                objFloor.innerHTML = '<option value="">Impossible de charger les etages</option>';
+                objRoom.innerHTML = '<option value="">Impossible de charger les salles</option>';
             }
         }
 
-        function renderTemplates() {
-            typeShowcase.innerHTML = TEMPLATES.map(function (template) {
-                return `
-                    <div class="type-card" data-id="${template.id}">
-                        <div class="type-icon"><i class="${template.icon}"></i></div>
-                        <div class="font-bold">${template.label}</div>
-                    </div>
-                `;
-            }).join('');
-
-            document.querySelectorAll('.type-card').forEach(function (card) {
-                card.onclick = function () {
-                    selectedTemplateId = card.dataset.id;
-                    const template = TEMPLATES.find(function (item) { return item.id === selectedTemplateId; });
-
-                    document.querySelectorAll('.type-card').forEach(function (node) {
-                        node.classList.remove('active');
-                    });
-                    card.classList.add('active');
-
-                    selectedTypePill.textContent = `Template: ${template.label}`;
-                    selectedTypePill.classList.add('active');
-                    templateDesc.textContent = template.desc;
-                };
-            });
-        }
-
-        addForm.onsubmit = async function (event) {
+        addForm.addEventListener('submit', async function (event) {
             event.preventDefault();
 
-            if (!selectedTemplateId) {
-                alert('Choisissez un template.');
+            if (!currentTdId || !currentTd) {
+                alert('Selectionnez un objet IoT depuis le catalogue WoT.');
                 return;
             }
 
-            const safeName = String(objNameInput.value || '').trim();
-            const safeLocation = String(objLocSelect.value || '').trim();
+            const localName = String(objLocalName.value || '').trim();
+            const floor = String(objFloor.value || '').trim();
+            const room = String(objRoom.value || '').trim();
 
-            if (!safeName) {
-                alert("Veuillez saisir un nom d'objet.");
-                objNameInput.focus();
+            if (!localName) {
+                alert("Veuillez saisir le nom local de l'objet.");
+                objLocalName.focus();
                 return;
             }
-
-            if (!safeLocation) {
+            if (!floor) {
+                alert("Veuillez choisir un etage.");
+                objFloor.focus();
+                return;
+            }
+            if (!room) {
                 alert('Veuillez choisir une salle.');
-                objLocSelect.focus();
+                objRoom.focus();
                 return;
             }
 
-            submitButton.disabled = true;
+            submitBtn.disabled = true;
 
             try {
-                const response = await fetch(`${apiBase}/objects/add/${selectedTemplateId}`, {
+                const response = await fetch(`${apiBase}/things/from-td`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({
-                        name: safeName,
-                        location: safeLocation
+                        td_id: currentTdId,
+                        local_name: localName,
+                        floor: floor,
+                        room: room
                     })
                 });
 
                 const payload = await response.json().catch(function () { return {}; });
                 if (!response.ok) {
-                    alert(payload.detail || "Erreur lors de la création de l'objet.");
+                    alert(payload.detail || "Erreur lors de l'ajout de l'objet.");
                     return;
                 }
 
-                alert(payload.message || 'Objet créé avec succès !');
+                alert(payload.message || 'Objet ajoute avec succes depuis sa TD.');
                 window.location.href = 'index.html';
             } catch (error) {
-                console.error('Erreur création objet:', error);
-                alert('Erreur de connexion au serveur');
+                console.error('Erreur creation depuis TD:', error);
+                alert('Erreur de connexion au serveur.');
             } finally {
-                submitButton.disabled = false;
+                submitBtn.disabled = false;
             }
-        };
+        });
 
-        renderTemplates();
+        objFloor.addEventListener('change', function () {
+            populateRoomsForFloor(objFloor.value);
+        });
+
+        reloadTdBtn.addEventListener('click', loadCatalog);
+        cancelBtn.addEventListener('click', function () {
+            window.location.href = 'index.html';
+        });
+
+        renderChips(tdProperties, [], 'property');
+        renderChips(tdActions, [], 'action');
+        renderChips(tdEvents, [], 'event');
+        loadCatalog();
         loadRooms();
     </script>
 </body>

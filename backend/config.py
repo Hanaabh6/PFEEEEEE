@@ -22,6 +22,12 @@ SUPABASE_SERVICE_ROLE = (
     or os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 )
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+WOT_TD_CATALOG_URL = os.getenv("WOT_TD_CATALOG_URL", "").strip().rstrip("/")
+
+try:
+    WOT_CATALOG_TIMEOUT_SECONDS = float(os.getenv("WOT_CATALOG_TIMEOUT_SECONDS", "1.2"))
+except ValueError:
+    WOT_CATALOG_TIMEOUT_SECONDS = 1.2
 
 _DEFAULT_FRONTEND_ORIGINS = [
     "http://127.0.0.1:8000",

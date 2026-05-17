@@ -1158,6 +1158,54 @@
       return Boolean(control.endpoint && actions.play && actions.next && actions.prev && actions["volume-up"] && actions["volume-down"] && actions.mute);
     }
 
+    function getGenericControlActions(item) {
+      if (getRemoteObjectKind(item)) return [];
+      const control = item && typeof item.control === "object" ? item.control : {};
+      const actions = getControlActions(item);
+      if (!control.endpoint || !actions || typeof actions !== "object") return [];
+
+      return Object.keys(actions)
+        .map(function (name) {
+          const cfg = actions[name] && typeof actions[name] === "object" ? actions[name] : {};
+          return {
+            name: String(name || "").trim().toLowerCase(),
+            label: String(cfg.label || name || "").trim()
+          };
+        })
+        .filter(function (action) { return Boolean(action.name); });
+    }
+
+    function getGenericActionIcon(actionName) {
+      const normalized = String(actionName || "").toLowerCase();
+      if (normalized === "on" || normalized.includes("start") || normalized.includes("activate")) return "fa-power-off";
+      if (normalized === "off" || normalized.includes("stop") || normalized.includes("deactivate")) return "fa-moon";
+      if (normalized.includes("print")) return "fa-print";
+      if (normalized.includes("scan")) return "fa-file-lines";
+      if (normalized.includes("calibr")) return "fa-sliders";
+      if (normalized.includes("lock")) return "fa-lock";
+      if (normalized.includes("unlock")) return "fa-lock-open";
+      return "fa-bolt";
+    }
+
+    function formatGenericActionLabel(action) {
+      const raw = String(action && action.label ? action.label : action && action.name ? action.name : "").trim();
+      const known = {
+        on: "Allumer",
+        off: "Eteindre",
+        printtestpage: "Imprimer une page de test",
+        calibrate: "Calibrer",
+        unlock: "Deverrouiller",
+        lock: "Verrouiller"
+      };
+      const key = raw.replace(/[^a-z0-9]/gi, "").toLowerCase();
+      if (known[key]) return known[key];
+      return raw
+        .replace(/[-_]+/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/\s+/g, " ")
+        .replace(/^./, function (letter) { return letter.toUpperCase(); });
+    }
+
     function getTvChannels(item) {
       const fallback = ["tf1.mp4", "natgeo.mp4", "arte.mp4", "france24.mp4"];
       const state = item && typeof item.device_state === "object" ? item.device_state : {};
@@ -1207,6 +1255,7 @@
       const tvDetected = remoteKind === "tv";
       const remoteControls = (lampDetected || alarmDetected) && hasRemotePowerControls(item);
       const tvControls = tvDetected && hasTvControls(item);
+      const genericActions = getGenericControlActions(item);
       const remoteState = remoteKind ? getRemotePowerState(item) : "off";
       const tvChannels = tvDetected ? getTvChannels(item) : [];
       const currentChannel = String(item && item.device_state && item.device_state.channel ? item.device_state.channel : "").trim();
@@ -1378,6 +1427,21 @@
                     data-thing-id="${sanitize(safeId)}"
                   >
                     <i class="fas fa-play"></i> ${sanitize(getTvChannelLabel(ch))}
+                  </button>
+                `).join("")}
+              </div>
+            ` : genericActions.length ? `
+              <p class="feature-description">${sanitize(tr("my_objects_generic_action_help", "Commandes declarees dans la Thing Description de cet objet."))}</p>
+              <div class="tv-actions-grid">
+                ${genericActions.map((action) => `
+                  <button
+                    type="button"
+                    class="tv-btn ${action.name === "on" ? "primary" : ""}"
+                    data-feature-action="remote-generic"
+                    data-generic-action="${sanitize(action.name)}"
+                    data-thing-id="${sanitize(safeId)}"
+                  >
+                    <i class="fas ${getGenericActionIcon(action.name)}"></i> ${sanitize(formatGenericActionLabel(action))}
                   </button>
                 `).join("")}
               </div>
@@ -1746,12 +1810,12 @@
 
     if (featureBody) {
       featureBody.addEventListener("click", async function (event) {
-        const actionBtn = event.target.closest("[data-feature-action='remote-power'], [data-feature-action='remote-tv']");
+        const actionBtn = event.target.closest("[data-feature-action='remote-power'], [data-feature-action='remote-tv'], [data-feature-action='remote-generic']");
         if (!actionBtn) return;
 
         const thingId = String(actionBtn.getAttribute("data-thing-id") || "").trim();
         const item = mesObjetsCache.get(thingId);
-        if (!thingId || !item || !getRemoteObjectKind(item)) return;
+        if (!thingId || !item) return;
 
         const featureAction = actionBtn.getAttribute("data-feature-action");
         let actionName = "";
@@ -1761,16 +1825,20 @@
           const nextState = actionBtn.getAttribute("data-next-state") === "on" ? "on" : "off";
           if (!hasRemotePowerControls(item)) return;
           actionName = nextState;
-        } else {
+        } else if (featureAction === "remote-tv") {
           if (!hasTvControls(item)) return;
           actionName = String(actionBtn.getAttribute("data-tv-action") || "").trim().toLowerCase();
           if (!actionName) return;
           if (actionName === "play") {
             payload = { channel: String(actionBtn.getAttribute("data-channel-name") || "").trim() };
           }
+        } else {
+          const allowed = getGenericControlActions(item).map(function (action) { return action.name; });
+          actionName = String(actionBtn.getAttribute("data-generic-action") || "").trim().toLowerCase();
+          if (!actionName || allowed.indexOf(actionName) === -1) return;
         }
 
-        const buttons = featureBody.querySelectorAll("[data-feature-action='remote-power'], [data-feature-action='remote-tv']");
+        const buttons = featureBody.querySelectorAll("[data-feature-action='remote-power'], [data-feature-action='remote-tv'], [data-feature-action='remote-generic']");
         buttons.forEach(function (btn) { btn.disabled = true; });
         await triggerRemoteAction(thingId, actionName, payload);
       });

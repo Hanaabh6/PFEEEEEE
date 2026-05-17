@@ -782,9 +782,20 @@ def _extract_searchable_fields(item: dict) -> list[str]:
     loc = item.get("location", "")
     if isinstance(loc, dict):
         res.append(str(loc.get("room", "")))
+        res.append(str(loc.get("floor", "")))
         res.append(str(loc.get("etage", "")))
     else:
         res.append(str(loc))
+
+    td_summary = item.get("td_summary") if isinstance(item.get("td_summary"), dict) else {}
+    if td_summary:
+        res.append(str(td_summary.get("title", "")))
+        res.append(str(td_summary.get("name", "")))
+        for field_name in ("properties", "actions", "events"):
+            values = td_summary.get(field_name)
+            if isinstance(values, list):
+                res.extend(str(value) for value in values)
+
     return res
 
 

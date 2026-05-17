@@ -6,7 +6,6 @@
       "name",
       "type",
       "location",
-      "availability",
       "status"
     ],
     "properties": {
@@ -35,13 +34,8 @@
       },
       "status": {
         "bsonType": "string",
-        "enum": ["active", "inactive", "disponible", "en_utilisation", "indisponible", "hors-ligne"],
+        "enum": ["disponible", "en_utilisation", "maintenance", "indisponible"],
         "description": "Status of the thing"
-      },
-      "availability": {
-        "bsonType": "string",
-        "enum": ["disponible", "en_utilisation", "indisponible"],
-        "description": "Availability state"
       },
       "location": {
         "bsonType": "object",
@@ -56,6 +50,14 @@
           "room": {
             "bsonType": "string",
             "description": "Room/location name"
+          },
+          "floor": {
+            "bsonType": "string",
+            "description": "Building floor label"
+          },
+          "etage": {
+            "bsonType": "string",
+            "description": "Alias de compatibilite pour l'etage"
           },
           "x": {
             "bsonType": ["double", "int"],
@@ -76,6 +78,61 @@
       },
       "@type": {
         "bsonType": "string"
+      },
+      "thingDescription": {
+        "bsonType": "object",
+        "description": "Complete W3C Web of Things Thing Description JSON"
+      },
+      "td_summary": {
+        "bsonType": "object",
+        "description": "Extracted Thing Description metadata used by the app",
+        "properties": {
+          "td_id": {
+            "bsonType": "string"
+          },
+          "wot_id": {
+            "bsonType": "string"
+          },
+          "title": {
+            "bsonType": "string"
+          },
+          "name": {
+            "bsonType": "string"
+          },
+          "type": {
+            "bsonType": "string"
+          },
+          "description": {
+            "bsonType": "string"
+          },
+          "properties": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          },
+          "actions": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          },
+          "events": {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          },
+          "source": {
+            "bsonType": "string"
+          },
+          "source_url": {
+            "bsonType": "string"
+          },
+          "retrieved_at": {
+            "bsonType": "date"
+          }
+        }
       }
     }
   }

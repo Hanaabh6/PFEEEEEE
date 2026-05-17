@@ -340,10 +340,49 @@ def _remote_action_config(thing: dict, action_name: str) -> dict:
     method = str(action_cfg.get("method") or "POST").strip().upper()
     if not href:
         raise HTTPException(status_code=400, detail="Aucune action distante configuree pour cet objet")
-    return {"href": href, "method": method}
+    return {
+        "href": href,
+        "method": method,
+        "action": action_name,
+        "label": str(action_cfg.get("label") or action_name).strip(),
+        "simulated": bool(control.get("simulated")),
+    }
+
+
+class _SimulatedRemoteResponse:
+    ok = True
+
+    def __init__(self, payload: dict[str, Any]):
+        self._payload = payload
+        self.text = str(payload)
+
+    def json(self):
+        return self._payload
+
+
+def _simulate_remote_action(action_name: str, payload: dict[str, Any] | None = None) -> _SimulatedRemoteResponse:
+    clean_payload = payload if isinstance(payload, dict) else {}
+    channels = ["tf1.mp4", "natgeo.mp4", "arte.mp4", "france24.mp4"]
+    response_payload: dict[str, Any] = {
+        "success": True,
+        "message": f"Action {action_name.upper()} simulee",
+        "action": action_name,
+    }
+
+    if action_name == "channels":
+        response_payload["channels"] = channels
+    elif action_name == "play":
+        response_payload["current"] = str(clean_payload.get("channel") or channels[0])
+    elif action_name in {"next", "prev", "status"}:
+        response_payload["current"] = channels[0]
+
+    return _SimulatedRemoteResponse(response_payload)
 
 
 def _call_remote_action(remote_cfg: dict, payload: dict[str, Any] | None = None):
+    if remote_cfg.get("simulated"):
+        return _simulate_remote_action(str(remote_cfg.get("action") or ""), payload)
+
     method = str(remote_cfg.get("method") or "POST").strip().upper()
     href = str(remote_cfg.get("href") or "").strip()
     if method == "GET":
@@ -668,9 +707,6 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
     user_id, email = _require_authenticated_user(request)
 
     safe_action = str(action_name or "").strip().lower()
-    supported_actions = {"on", "off", "play", "next", "prev", "volume-up", "volume-down", "mute", "channels", "status"}
-    if safe_action not in supported_actions:
-        raise HTTPException(status_code=400, detail="Action distante non supportee")
 
     things = _things_collection()
     history = _user_history_collection()
@@ -683,6 +719,15 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
     thing = things.find_one({"id": thing_id})
     if not thing:
         raise HTTPException(status_code=404, detail="Objet introuvable")
+
+    supported_actions = {"on", "off", "play", "next", "prev", "volume-up", "volume-down", "mute", "channels", "status"}
+    configured_actions = (
+        thing.get("control", {}).get("actions", {})
+        if isinstance(thing.get("control"), dict) and isinstance(thing.get("control", {}).get("actions"), dict)
+        else {}
+    )
+    if safe_action not in supported_actions and safe_action not in configured_actions:
+        raise HTTPException(status_code=400, detail="Action distante non supportee")
 
     remote_cfg = _remote_action_config(thing, safe_action)
     action_payload = payload if isinstance(payload, dict) else {}
