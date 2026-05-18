@@ -332,12 +332,164 @@ def expire_due_borrows(*, thing_id: str = "", user_id: str = "", limit: int = 20
     return expired_results
 
 
+def _first_form(entry: Any) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        return {}
+    forms = entry.get("forms")
+    if isinstance(forms, list):
+        for form in forms:
+            if isinstance(form, dict):
+                return form
+    return {}
+
+
+def _td_control_from_thing(thing: dict) -> dict:
+    td = thing.get("thingDescription") if isinstance(thing.get("thingDescription"), dict) else {}
+    if not td:
+        return {}
+
+    td_actions = td.get("actions") if isinstance(td.get("actions"), dict) else {}
+    td_properties = td.get("properties") if isinstance(td.get("properties"), dict) else {}
+    control_actions: dict[str, dict[str, Any]] = {}
+    control_properties: dict[str, dict[str, Any]] = {}
+    first_href = ""
+
+    for action_name, action_spec in td_actions.items():
+        safe_name = str(action_name or "").strip()
+        if not safe_name:
+            continue
+
+        form = _first_form(action_spec)
+        href = str(form.get("href") or "").strip()
+        if not href:
+            continue
+        if not first_href:
+            first_href = href
+
+        action_entry = {
+            "method": str(form.get("htv:methodName") or form.get("method") or "POST").strip().upper(),
+            "href": href,
+            "label": safe_name,
+            "description": str(action_spec.get("description") or "").strip() if isinstance(action_spec, dict) else "",
+            "contentType": str(form.get("contentType") or "application/json").strip(),
+        }
+        if isinstance(action_spec, dict) and isinstance(action_spec.get("input"), dict):
+            action_entry["input"] = action_spec["input"]
+        control_actions[safe_name.lower()] = action_entry
+
+    for prop_name, prop_spec in td_properties.items():
+        safe_name = str(prop_name or "").strip()
+        if not safe_name:
+            continue
+
+        form = _first_form(prop_spec)
+        href = str(form.get("href") or "").strip()
+        if not href:
+            continue
+        if not first_href:
+            first_href = href
+
+        control_properties[safe_name.lower()] = {
+            "method": str(form.get("htv:methodName") or form.get("method") or "GET").strip().upper(),
+            "href": href,
+            "label": safe_name,
+            "contentType": str(form.get("contentType") or "application/json").strip(),
+        }
+
+    if not control_actions and not control_properties:
+        return {}
+
+    status_href = ""
+    for key in ("status", "state", "power", "locked", "armed", "alarmstate"):
+        if key in control_properties:
+            status_href = str(control_properties[key].get("href") or "").strip()
+            break
+
+    td_summary = thing.get("td_summary") if isinstance(thing.get("td_summary"), dict) else {}
+    td_source = str(td_summary.get("source") or "").strip().lower()
+
+    return {
+        "@type": "EntryPoint",
+        "name": "WoT TD Control",
+        "protocol": "WoT/HTTP",
+        "contentType": "application/json",
+        "endpoint": first_href,
+        "health": status_href or first_href,
+        "simulated": bool(
+            (thing.get("control") if isinstance(thing.get("control"), dict) else {}).get("simulated")
+            or td_source in {"bundled", "custom"}
+        ),
+        "actions": control_actions,
+        "properties": control_properties,
+    }
+
+
+def _effective_control(thing: dict) -> dict:
+    current = thing.get("control") if isinstance(thing.get("control"), dict) else {}
+    from_td = _td_control_from_thing(thing)
+    if not from_td:
+        return current
+
+    merged = dict(current) if current else {}
+    merged.setdefault("@type", from_td.get("@type"))
+    merged.setdefault("name", from_td.get("name"))
+    merged.setdefault("protocol", from_td.get("protocol"))
+    merged.setdefault("contentType", from_td.get("contentType"))
+
+    current_actions = current.get("actions") if isinstance(current.get("actions"), dict) else {}
+    td_actions = from_td.get("actions") if isinstance(from_td.get("actions"), dict) else {}
+    merged_actions = dict(td_actions)
+    for name, cfg in current_actions.items():
+        current_cfg = cfg if isinstance(cfg, dict) else {}
+        td_cfg = merged_actions.get(name) if isinstance(merged_actions.get(name), dict) else {}
+        if str(current_cfg.get("href") or "").strip():
+            merged_actions[name] = {**td_cfg, **current_cfg}
+        elif td_cfg:
+            merged_actions[name] = {**current_cfg, **td_cfg}
+        else:
+            merged_actions[name] = current_cfg
+    merged["actions"] = merged_actions
+
+    current_properties = current.get("properties") if isinstance(current.get("properties"), dict) else {}
+    td_properties = from_td.get("properties") if isinstance(from_td.get("properties"), dict) else {}
+    if td_properties or current_properties:
+        merged_properties = dict(td_properties)
+        for name, cfg in current_properties.items():
+            current_cfg = cfg if isinstance(cfg, dict) else {}
+            td_cfg = merged_properties.get(name) if isinstance(merged_properties.get(name), dict) else {}
+            if str(current_cfg.get("href") or "").strip():
+                merged_properties[name] = {**td_cfg, **current_cfg}
+            elif td_cfg:
+                merged_properties[name] = {**current_cfg, **td_cfg}
+            else:
+                merged_properties[name] = current_cfg
+        merged["properties"] = merged_properties
+
+    if not str(merged.get("endpoint") or "").strip():
+        merged["endpoint"] = from_td.get("endpoint", "")
+    if not str(merged.get("health") or "").strip():
+        merged["health"] = from_td.get("health", "")
+    if "simulated" not in merged:
+        merged["simulated"] = bool(from_td.get("simulated"))
+    return merged
+
+
 def _remote_action_config(thing: dict, action_name: str) -> dict:
-    control = thing.get("control") if isinstance(thing.get("control"), dict) else {}
+    control = _effective_control(thing)
     actions = control.get("actions") if isinstance(control.get("actions"), dict) else {}
+    properties = control.get("properties") if isinstance(control.get("properties"), dict) else {}
     action_cfg = actions.get(action_name) if isinstance(actions.get(action_name), dict) else {}
+    if not str(action_cfg.get("href") or "").strip():
+        prop_cfg = properties.get(action_name) if isinstance(properties.get(action_name), dict) else {}
+        if not prop_cfg and action_name == "status":
+            for alias in ("status", "state", "power", "locked", "armed", "alarmstate"):
+                prop_cfg = properties.get(alias) if isinstance(properties.get(alias), dict) else {}
+                if prop_cfg:
+                    break
+        if prop_cfg:
+            action_cfg = prop_cfg
     href = str(action_cfg.get("href") or "").strip()
-    method = str(action_cfg.get("method") or "POST").strip().upper()
+    method = str(action_cfg.get("method") or ("GET" if action_name == "status" else "POST")).strip().upper()
     if not href:
         raise HTTPException(status_code=400, detail="Aucune action distante configuree pour cet objet")
     return {
@@ -489,7 +641,7 @@ def get_mes_objets(request: Request):
                     or log.get("borrow_mode")
                     or ""
                 ),
-                "control": thing.get("control") if isinstance(thing.get("control"), dict) else None,
+                "control": _effective_control(thing) or None,
                 "device_state": thing.get("device_state") if isinstance(thing.get("device_state"), dict) else {},
             }
         )
@@ -721,9 +873,10 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
         raise HTTPException(status_code=404, detail="Objet introuvable")
 
     supported_actions = {"on", "off", "play", "next", "prev", "volume-up", "volume-down", "mute", "channels", "status"}
+    effective_control = _effective_control(thing)
     configured_actions = (
-        thing.get("control", {}).get("actions", {})
-        if isinstance(thing.get("control"), dict) and isinstance(thing.get("control", {}).get("actions"), dict)
+        effective_control.get("actions", {})
+        if isinstance(effective_control, dict) and isinstance(effective_control.get("actions"), dict)
         else {}
     )
     if safe_action not in supported_actions and safe_action not in configured_actions:

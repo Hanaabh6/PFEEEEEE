@@ -143,6 +143,25 @@
       return true;
     }
 
+    // Utilisateur déjà connecté (vient de parametres.html / parametres-user.html)
+    // Restaurer la session Supabase depuis le token stocké en localStorage
+    const storedToken = String(localStorage.getItem('userToken') || '').trim();
+    const storedRefresh = String(localStorage.getItem('userRefreshToken') || '').trim();
+    if (storedToken && !params.code && !params.token_hash && !params.access_token) {
+      try {
+        const resp = await client.auth.setSession({
+          access_token: storedToken,
+          refresh_token: storedRefresh || storedToken
+        });
+        if (!resp.error && await hasActiveSession()) {
+          console.log('reset page - session restored from localStorage token');
+          return true;
+        }
+      } catch (e) {
+        console.warn('reset page - could not restore session from localStorage:', e);
+      }
+    }
+
     if (params.code) {
       try {
         const resp = await client.auth.exchangeCodeForSession(params.code);

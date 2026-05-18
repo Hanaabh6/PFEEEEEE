@@ -272,37 +272,25 @@ def _find_thing_with_same_name(name: str, exclude_id: str = "") -> dict | None:
 
 def _build_keyword_docs(item: dict) -> list[dict]:
     thing_id = str(item.get("id", "")).strip()
-    loc = item.get("location") if isinstance(item.get("location"), dict) else {}
-    td_summary = item.get("td_summary") if isinstance(item.get("td_summary"), dict) else {}
-    td = item.get("thingDescription") if isinstance(item.get("thingDescription"), dict) else {}
 
-    def join_names(value) -> str:
-        if isinstance(value, dict):
-            return " ".join(str(key) for key in value.keys())
-        if isinstance(value, list):
-            return " ".join(str(entry) for entry in value)
-        return str(value or "")
+    loc = item.get("location") if isinstance(item.get("location"), dict) else {}
 
     fields = [
         ("TITRE", 3, item.get("name", "")),
         ("TYPE", 2, item.get("type", "")),
         ("DESCRIPTION", 1, item.get("description", "")),
         ("SALLE", 2, loc.get("room", "")),
-        ("ETAGE", 2, loc.get("floor", "") or loc.get("etage", "")),
-        ("TD_TITRE", 2, td_summary.get("title", "") or td.get("title", "")),
-        ("TD_NOM", 2, td_summary.get("name", "") or td.get("name", "")),
-        ("TD_PROPRIETE", 2, join_names(td_summary.get("properties") or td.get("properties"))),
-        ("TD_ACTION", 2, join_names(td_summary.get("actions") or td.get("actions"))),
-        ("TD_EVENT", 1, join_names(td_summary.get("events") or td.get("events"))),
     ]
 
     frequency: dict[tuple[str, str], int] = {}
+
     for source, weight, text in fields:
         for token in _extract_keywords(str(text or "")):
             key = (token, source)
             frequency[key] = frequency.get(key, 0) + 1
 
     docs = []
+
     for (token, source), freq in frequency.items():
         docs.append(
             {
@@ -313,6 +301,7 @@ def _build_keyword_docs(item: dict) -> list[dict]:
                 "frequence": max(1, int(freq)),
             }
         )
+
     return docs
 
 

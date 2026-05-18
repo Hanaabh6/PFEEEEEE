@@ -26,6 +26,7 @@ class AddThingFromTdRequest(BaseModel):
     local_name: str = Field(..., min_length=1, max_length=120)
     room: str = Field(..., min_length=1, max_length=120)
     floor: str = Field(default="", max_length=120)
+    custom_type: str = Field(default="", max_length=80)
 
 
 def _catalog_base_url() -> str:
@@ -196,10 +197,12 @@ def _build_potential_actions_from_td(td: dict[str, Any]) -> list[dict[str, Any]]
 
 def _build_control_from_td(td: dict[str, Any], simulated: bool = False) -> dict[str, Any] | None:
     actions = td.get("actions") if isinstance(td.get("actions"), dict) else {}
-    if not actions:
+    properties = td.get("properties") if isinstance(td.get("properties"), dict) else {}
+    if not actions and not properties:
         return None
 
     control_actions: dict[str, dict[str, Any]] = {}
+    control_properties: dict[str, dict[str, Any]] = {}
     first_href = ""
     for action_name, action_spec in actions.items():
         safe_name = str(action_name or "").strip()
@@ -215,15 +218,46 @@ def _build_control_from_td(td: dict[str, Any], simulated: bool = False) -> dict[
         if not first_href:
             first_href = href
 
-        control_actions[safe_name.lower()] = {
+        action_entry = {
+            "method": method,
+            "href": href,
+            "label": safe_name,
+            "description": str(action_spec.get("description") or "").strip() if isinstance(action_spec, dict) else "",
+            "contentType": str(form.get("contentType") or "application/json").strip(),
+        }
+        if isinstance(action_spec, dict) and isinstance(action_spec.get("input"), dict):
+            action_entry["input"] = action_spec["input"]
+        control_actions[safe_name.lower()] = action_entry
+
+    for prop_name, prop_spec in properties.items():
+        safe_name = str(prop_name or "").strip()
+        if not safe_name:
+            continue
+
+        form = _first_form(prop_spec)
+        href = str(form.get("href") or "").strip()
+        method = str(form.get("htv:methodName") or form.get("method") or "GET").strip().upper()
+        if not href:
+            continue
+
+        if not first_href:
+            first_href = href
+
+        control_properties[safe_name.lower()] = {
             "method": method,
             "href": href,
             "label": safe_name,
             "contentType": str(form.get("contentType") or "application/json").strip(),
         }
 
-    if not control_actions:
+    if not control_actions and not control_properties:
         return None
+
+    status_href = ""
+    for key in ("status", "state", "power", "locked", "armed", "alarmstate"):
+        if key in control_properties:
+            status_href = str(control_properties[key].get("href") or "").strip()
+            break
 
     return {
         "@type": "EntryPoint",
@@ -231,9 +265,10 @@ def _build_control_from_td(td: dict[str, Any], simulated: bool = False) -> dict[
         "protocol": "WoT/HTTP",
         "contentType": "application/json",
         "endpoint": first_href,
-        "health": first_href,
+        "health": status_href or first_href,
         "simulated": bool(simulated),
         "actions": control_actions,
+        "properties": control_properties,
     }
 
 
@@ -261,6 +296,70 @@ def _prepare_for_things_insert(item: dict[str, Any]) -> dict[str, Any]:
     clean_item.pop("created_at", None)
     clean_item.pop("updated_at", None)
     return clean_item
+
+
+def _slug_for_custom_type(value: str) -> str:
+    slug = _normalize_text(value).replace(" ", "-")
+    slug = "".join(ch for ch in slug if ch.isalnum() or ch == "-").strip("-")
+    return slug or "objet-personnalise"
+
+
+def _custom_td_payload(custom_type: str, local_name: str) -> dict[str, Any]:
+    safe_type = str(custom_type or "").strip()
+    if not safe_type:
+        raise HTTPException(status_code=400, detail="Le type personnalise est obligatoire.")
+
+    slug = _slug_for_custom_type(safe_type)
+    td_id = f"custom-{slug}"
+    td = {
+        "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            "https://schema.org/",
+        ],
+        "id": f"urn:dev:wot:intellibuild:{td_id}",
+        "title": str(local_name or safe_type).strip() or safe_type,
+        "name": str(local_name or safe_type).strip() or safe_type,
+        "description": f"Objet personnalise de type {safe_type} ajoute depuis IntelliBuild.",
+        "@type": "Product",
+        "category": safe_type,
+        "securityDefinitions": {
+            "nosec_sc": {"scheme": "nosec"},
+        },
+        "security": ["nosec_sc"],
+        "properties": {
+            "status": {
+                "type": "string",
+                "readOnly": True,
+                "description": "Etat courant de l'objet personnalise.",
+                "forms": [
+                    {
+                        "href": f"https://wot-gateway.example.com/{td_id}/properties/status",
+                        "op": "readproperty",
+                        "contentType": "application/json",
+                    }
+                ],
+            }
+        },
+        "actions": {
+            "identify": {
+                "description": "Identifier physiquement ou logiquement l'objet.",
+                "forms": [
+                    {
+                        "href": f"https://wot-gateway.example.com/{td_id}/actions/identify",
+                        "op": "invokeaction",
+                        "htv:methodName": "POST",
+                        "contentType": "application/json",
+                    }
+                ],
+            }
+        },
+    }
+    return {
+        "source": "custom",
+        "catalog_url": "frontend.ajouter-objet",
+        "summary": summarize_td(td_id, td, source_url=""),
+        "thingDescription": td,
+    }
 
 
 @wot_router.get("/wot/things")
@@ -297,7 +396,10 @@ def add_thing_from_td(request: Request, data: AddThingFromTdRequest = Body(...))
     safe_floor = str(data.floor or "").strip()
     floor_label = inferred_floor or safe_floor
 
-    td_payload = _resolve_td(data.td_id)
+    if str(data.td_id or "").strip() == "__custom__":
+        td_payload = _custom_td_payload(data.custom_type, safe_name)
+    else:
+        td_payload = _resolve_td(data.td_id)
     td = td_payload["thingDescription"]
     summary = td_payload["summary"]
     now_iso = datetime.now(timezone.utc).isoformat()

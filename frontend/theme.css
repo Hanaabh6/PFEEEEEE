@@ -2069,3 +2069,19 @@ footer.glass-main {
     margin-left: 0 !important;
   }
 }
+/* ===== NO-SIDEBAR PAGES (guest / public) ===== */
+/* When the user is not logged in, no sidebar is injected.
+   Reset the margin-left offset that is normally reserved for the sidebar. */
+html[data-role="guest"] body > main,
+html[data-role="guest"] body > .main,
+html[data-role="guest"] body > .main-area,
+html[data-role="guest"] body > .content-area,
+html[data-role="guest"] body > .main-wrap,
+html[data-role="guest"] body > .flex-1,
+html[data-role="guest"] body > .container,
+html[data-role="guest"] body > .doc-page {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 0 !important;
+}

@@ -3,223 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IntelliBuild - Ajouter un objet WoT</title>
+    <title>IntelliBuild - Ajouter un objet</title>
     <script src="config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root {
+            --ib-green: #059669;
+            --ib-green-dark: #047857;
+            --ib-ink: #0f172a;
+        }
         body {
-            background: url('https://images.pexels.com/photos/4040649/pexels-photo-4040649.jpeg') no-repeat center center fixed;
-            background-size: cover;
-            display: flex;
             min-height: 100vh;
             margin: 0;
+            display: flex;
+            background:
+                linear-gradient(120deg, rgba(15, 23, 42, .76), rgba(4, 120, 87, .38)),
+                url('https://images.pexels.com/photos/4040649/pexels-photo-4040649.jpeg') center/cover fixed;
         }
-        .form-card {
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(14px);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.35);
+        .shell {
+            background: rgba(248, 250, 252, .94);
+            border: 1px solid rgba(255, 255, 255, .5);
+            border-radius: 22px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+            backdrop-filter: blur(16px);
         }
-        .section-panel {
+        .object-card {
+            min-height: 104px;
             border: 1px solid #dbe3ef;
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: 18px;
-            padding: 20px;
-        }
-        .td-card {
-            border: 1px solid #dbe3ef;
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
+            border-radius: 16px;
+            background: #fff;
+            color: var(--ib-ink);
             cursor: pointer;
-            transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
-            min-height: 150px;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
         }
-        .td-card:hover {
-            border-color: #10b981;
+        .object-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 14px 24px rgba(15, 23, 42, 0.12);
+            border-color: rgba(5, 150, 105, .55);
+            box-shadow: 0 16px 30px rgba(15, 23, 42, .12);
         }
-        .td-card.active {
-            border-color: #059669;
+        .object-card.active {
+            border-color: var(--ib-green);
             background: #ecfdf5;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, .18);
         }
-        .td-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
+        .object-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
             display: grid;
             place-items: center;
-            background: #e2e8f0;
-            color: #0f766e;
+            background: #eef2f7;
+            color: var(--ib-green-dark);
             font-size: 18px;
             flex: 0 0 auto;
         }
-        .td-card.active .td-icon {
-            background: #10b981;
-            color: #ffffff;
+        .object-card.active .object-icon {
+            background: var(--ib-green);
+            color: #fff;
         }
-        .field-input,
-        .field-select,
-        .field-textarea {
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            border-radius: 11px;
-            padding: 12px;
-            margin-top: 6px;
-            background: #ffffff;
-        }
-        .field-input[readonly],
-        .field-textarea[readonly] {
-            background: #f8fafc;
-            color: #334155;
+        .add-type-card {
+            border-style: dashed;
+            background: rgba(255, 255, 255, .72);
         }
         .field-label {
-            font-weight: 800;
+            display: block;
+            margin-bottom: 8px;
             color: #334155;
-            font-size: 14px;
-        }
-        .capability-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .capability-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: #eef2ff;
-            color: #3730a3;
-            font-size: 12px;
-            font-weight: 800;
-        }
-        .capability-pill.action {
-            background: #dcfce7;
-            color: #166534;
-        }
-        .capability-pill.event {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 7px 11px;
-            border-radius: 999px;
-            background: #e2e8f0;
-            color: #334155;
-            font-size: 12px;
-            font-weight: 800;
-        }
-        .status-badge.external {
-            background: #dcfce7;
-            color: #166534;
-        }
-        .status-badge.bundled {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .json-preview {
-            min-height: 220px;
-            resize: vertical;
-            font-family: Consolas, Monaco, monospace;
-            font-size: 12px;
-            line-height: 1.45;
-        }
-        .muted-note {
-            color: #64748b;
             font-size: 13px;
+            font-weight: 800;
+        }
+        .field-input,
+        .field-select {
+            width: 100%;
+            min-height: 48px;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            background: #fff;
+            padding: 12px 14px;
+            color: #0f172a;
+            outline: none;
+            transition: border-color .18s ease, box-shadow .18s ease;
+        }
+        .field-input:focus,
+        .field-select:focus {
+            border-color: var(--ib-green);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+        }
+        .soft-panel {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, .78);
+        }
+        .primary-btn {
+            min-height: 52px;
+            border-radius: 15px;
+            background: var(--ib-green);
+            color: #fff;
+            font-weight: 900;
+            box-shadow: 0 16px 28px rgba(5, 150, 105, .24);
+            transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+        }
+        .primary-btn:hover {
+            background: var(--ib-green-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 18px 32px rgba(5, 150, 105, .3);
+        }
+        .secondary-btn {
+            min-height: 52px;
+            border-radius: 15px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            font-weight: 900;
         }
         button:disabled {
-            opacity: .6;
+            opacity: .62;
             cursor: not-allowed;
+            transform: none !important;
         }
-        @media (max-width: 900px) {
-            .catalog-grid {
-                grid-template-columns: 1fr;
-            }
+        .fade-in {
+            animation: fadeIn .22s ease both;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body class="flex">
     <script src="sidebar-loader.js"></script>
 
-    <main class="flex-1 p-6 md:p-8">
+    <main class="flex-1 p-4 md:p-8">
         <div class="max-w-6xl mx-auto">
-            <div class="form-card p-6 md:p-10">
-                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
-                    <div>
-                        <h1 class="text-3xl font-black text-gray-800 mb-2">Ajouter un objet depuis une Thing Description</h1>
-                        <p class="text-gray-500">Les metadonnees IoT sont chargees automatiquement depuis un catalogue WoT.</p>
-                    </div>
-                    <span id="sourceBadge" class="status-badge"><i class="fas fa-circle-notch fa-spin"></i> Chargement</span>
+            <div class="shell p-5 md:p-8">
+                <div class="flex flex-col gap-2 mb-7">
+                    <span class="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                        <i class="fas fa-cube"></i> IntelliBuild
+                    </span>
+                    <h1 class="text-3xl md:text-4xl font-black text-slate-900">Ajouter un objet</h1>
                 </div>
 
-                <section class="section-panel mb-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                        <h2 class="font-black text-emerald-900 text-lg">1. Objets IoT disponibles</h2>
-                        <button type="button" id="reloadTdBtn" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700">
-                            <i class="fas fa-rotate-right mr-2"></i>Actualiser
-                        </button>
-                    </div>
-                    <div id="catalogStatus" class="muted-note mb-3">Chargement du catalogue WoT...</div>
-                    <div id="tdCatalog" class="catalog-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
-                </section>
-
                 <form id="addForm" class="space-y-6">
-                    <section class="section-panel">
-                        <h2 class="font-black text-slate-800 text-lg mb-4">2. Donnees extraites de la TD</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="field-label" for="tdTitle">Nom de l'objet dans la TD</label>
-                                <input id="tdTitle" type="text" class="field-input" readonly placeholder="Selectionnez un objet WoT">
-                            </div>
-                            <div>
-                                <label class="field-label" for="tdType">Type</label>
-                                <input id="tdType" type="text" class="field-input" readonly placeholder="Selectionnez un objet WoT">
-                            </div>
+                    <section class="soft-panel p-4 md:p-5">
+                        <div class="flex items-center justify-between gap-4 mb-4">
+                            <label class="field-label mb-0">Type d'objet</label>
+                            <button type="button" id="reloadTypesBtn" class="text-sm font-black text-emerald-700 hover:text-emerald-900">
+                                <i class="fas fa-rotate-right mr-1"></i> Actualiser
+                            </button>
                         </div>
 
-                        <div class="mt-4">
-                            <label class="field-label" for="tdDescription">Description</label>
-                            <textarea id="tdDescription" class="field-textarea" rows="3" readonly placeholder="Selectionnez un objet WoT"></textarea>
-                        </div>
+                        <div id="typeGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3"></div>
 
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-                            <div>
-                                <label class="field-label">Proprietes</label>
-                                <div id="tdProperties" class="capability-list"></div>
+                        <div id="customTypePanel" class="hidden fade-in mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input id="customTypeInput" type="text" maxlength="60" class="field-input" placeholder="Nouveau type d'objet">
+                                <button type="button" id="saveCustomTypeBtn" class="primary-btn px-5">
+                                    Ajouter
+                                </button>
                             </div>
-                            <div>
-                                <label class="field-label">Actions</label>
-                                <div id="tdActions" class="capability-list"></div>
-                            </div>
-                            <div>
-                                <label class="field-label">Evenements</label>
-                                <div id="tdEvents" class="capability-list"></div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <label class="field-label" for="tdJson">Thing Description complete</label>
-                            <textarea id="tdJson" class="field-textarea json-preview" readonly placeholder="Le JSON complet de la TD apparait ici."></textarea>
                         </div>
                     </section>
 
-                    <section class="section-panel">
-                        <h2 class="font-black text-slate-800 text-lg mb-4">3. Informations locales Smart Building</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <section class="soft-panel p-4 md:p-5">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label class="field-label" for="objLocalName">Nom local unique</label>
+                                <label class="field-label" for="objLocalName">Nom de l'objet</label>
                                 <input id="objLocalName" type="text" required maxlength="120" class="field-input" placeholder="Ex: Lampe Bureau 302">
-                                <p class="muted-note mt-2">Le backend refuse automatiquement les doublons.</p>
                             </div>
                             <div>
                                 <label class="field-label" for="objFloor">Etage</label>
@@ -228,7 +178,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="field-label" for="objRoom">Salle</label>
+                                <label class="field-label" for="objRoom">Salle / localisation</label>
                                 <select id="objRoom" required class="field-select" disabled>
                                     <option value="">Choisissez d'abord un etage</option>
                                 </select>
@@ -236,12 +186,12 @@
                         </div>
                     </section>
 
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <button type="button" id="cancelBtn" class="flex-1 py-4 bg-white border border-slate-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50">
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="button" id="cancelBtn" class="secondary-btn flex-1">
                             Annuler
                         </button>
-                        <button type="submit" id="submitBtn" class="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700">
-                            Enregistrer l'objet
+                        <button type="submit" id="submitBtn" class="primary-btn flex-1">
+                            <i class="fas fa-floppy-disk mr-2"></i> Enregistrer
                         </button>
                     </div>
                 </form>
@@ -252,31 +202,26 @@
     <script>
         const apiBase = window.APP_CONFIG.API_BASE;
         const token = localStorage.getItem('userToken');
-        if (!token) window.location.href = "login.html";
+        if (!token) window.location.href = 'login.html';
 
-        const sourceBadge = document.getElementById('sourceBadge');
-        const catalogStatus = document.getElementById('catalogStatus');
-        const tdCatalog = document.getElementById('tdCatalog');
-        const reloadTdBtn = document.getElementById('reloadTdBtn');
+        const typeGrid = document.getElementById('typeGrid');
+        const customTypePanel = document.getElementById('customTypePanel');
+        const customTypeInput = document.getElementById('customTypeInput');
+        const saveCustomTypeBtn = document.getElementById('saveCustomTypeBtn');
+        const reloadTypesBtn = document.getElementById('reloadTypesBtn');
         const addForm = document.getElementById('addForm');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.getElementById('cancelBtn');
-
-        const tdTitle = document.getElementById('tdTitle');
-        const tdType = document.getElementById('tdType');
-        const tdDescription = document.getElementById('tdDescription');
-        const tdProperties = document.getElementById('tdProperties');
-        const tdActions = document.getElementById('tdActions');
-        const tdEvents = document.getElementById('tdEvents');
-        const tdJson = document.getElementById('tdJson');
-
         const objLocalName = document.getElementById('objLocalName');
         const objFloor = document.getElementById('objFloor');
         const objRoom = document.getElementById('objRoom');
 
         let catalogItems = [];
+        let customTypes = [];
+        let selectedType = null;
         let currentTdId = '';
         let currentTd = null;
+        let tdLoading = false;
         let layoutFloors = [];
 
         function authHeaders(extra) {
@@ -292,116 +237,117 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function keysOf(value) {
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-                return Object.keys(value);
-            }
-            return [];
+        function normalizeType(value) {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
         }
 
         function getIconForType(type) {
-            const normalized = String(type || '').toLowerCase();
+            const normalized = normalizeType(type);
             if (normalized.includes('eclairage') || normalized.includes('light')) return 'fa-lightbulb';
+            if (normalized.includes('microphone')) return 'fa-microphone';
+            if (normalized.includes('camera')) return 'fa-video';
             if (normalized.includes('capteur') || normalized.includes('sensor')) return 'fa-wave-square';
+            if (normalized.includes('climatiseur') || normalized.includes('hvac')) return 'fa-temperature-three-quarters';
+            if (normalized.includes('interrupteur') || normalized.includes('switch')) return 'fa-toggle-on';
+            if (normalized.includes('cafe') || normalized.includes('coffee')) return 'fa-mug-hot';
             if (normalized.includes('television') || normalized.includes('tv')) return 'fa-tv';
+            if (normalized.includes('scanner')) return 'fa-barcode';
+            if (normalized.includes('bouton') || normalized.includes('button')) return 'fa-circle-dot';
             if (normalized.includes('acces') || normalized.includes('badge')) return 'fa-id-card';
+            if (normalized.includes('alarme') || normalized.includes('alarm')) return 'fa-bell';
             if (normalized.includes('imprimante') || normalized.includes('printer')) return 'fa-print';
+            if (normalized.includes('haut-parleur') || normalized.includes('speaker')) return 'fa-volume-high';
             return 'fa-microchip';
         }
 
-        function setSourceBadge(source) {
-            const clean = String(source || '').toLowerCase();
-            sourceBadge.className = 'status-badge ' + (clean === 'external' ? 'external' : 'bundled');
-            sourceBadge.innerHTML = clean === 'external'
-                ? '<i class="fas fa-cloud-arrow-down"></i> Service WoT externe'
-                : '<i class="fas fa-database"></i> Catalogue de secours';
+        function cardTemplate(item) {
+            const active = selectedType && selectedType.key === item.key ? ' active' : '';
+            const customBadge = item.custom ? '<span class="mt-2 inline-flex rounded-full bg-white px-2 py-1 text-[11px] font-black text-emerald-700">Perso</span>' : '';
+            return `
+                <button type="button" class="object-card${active} p-3 text-left" data-type-key="${escapeHtml(item.key)}">
+                    <span class="flex items-start gap-3">
+                        <span class="object-icon"><i class="fas ${getIconForType(item.type)}"></i></span>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-black leading-snug">${escapeHtml(item.type)}</span>
+                            ${customBadge}
+                        </span>
+                    </span>
+                </button>
+            `;
         }
 
-        function renderChips(container, items, mode) {
-            const cleanItems = (Array.isArray(items) ? items : []).filter(Boolean);
-            if (!cleanItems.length) {
-                container.innerHTML = '<span class="muted-note">Aucun</span>';
-                return;
-            }
+        function allTypeItems() {
+            const seen = new Set();
+            const items = [];
 
-            const cls = mode === 'action' ? ' action' : (mode === 'event' ? ' event' : '');
-            const icon = mode === 'action' ? 'fa-bolt' : (mode === 'event' ? 'fa-bell' : 'fa-tag');
-            container.innerHTML = cleanItems.map(function (item) {
-                return `<span class="capability-pill${cls}"><i class="fas ${icon}"></i>${escapeHtml(item)}</span>`;
-            }).join('');
-        }
-
-        function extractType(td, summary) {
-            if (summary && summary.type) return String(summary.type);
-            if (td && td.category) return String(td.category);
-            const typeValue = td && td['@type'];
-            if (Array.isArray(typeValue)) {
-                const clean = typeValue.find(function (item) {
-                    const value = String(item || '').toLowerCase();
-                    return value && value !== 'product' && value !== 'thing';
+            catalogItems.forEach(function (item) {
+                const type = String(item.type || item.title || item.name || 'Objet IoT').trim();
+                const key = normalizeType(type);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                items.push({
+                    key: key,
+                    td_id: item.td_id,
+                    type: type,
+                    custom: false
                 });
-                return clean || 'Objet IoT';
-            }
-            if (typeof typeValue === 'string' && !['product', 'thing'].includes(typeValue.toLowerCase())) {
-                return typeValue;
-            }
-            return 'Objet IoT';
+            });
+
+            customTypes.forEach(function (type) {
+                const key = normalizeType(type);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                items.push({
+                    key: key,
+                    td_id: '__custom__',
+                    type: type,
+                    custom: true
+                });
+            });
+
+            return items;
         }
 
-        function resetTdDetails() {
-            currentTdId = '';
-            currentTd = null;
-            tdTitle.value = '';
-            tdType.value = '';
-            tdDescription.value = '';
-            tdJson.value = '';
-            renderChips(tdProperties, [], 'property');
-            renderChips(tdActions, [], 'action');
-            renderChips(tdEvents, [], 'event');
-        }
+        function renderTypes() {
+            const items = allTypeItems();
+            const cards = items.map(cardTemplate).join('');
+            const addCard = `
+                <button type="button" id="addTypeBtn" class="object-card add-type-card p-3 text-left">
+                    <span class="flex items-start gap-3">
+                        <span class="object-icon"><i class="fas fa-plus"></i></span>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-black leading-snug">Ajouter un type</span>
+                        </span>
+                    </span>
+                </button>
+            `;
 
-        function renderCatalog() {
-            if (!catalogItems.length) {
-                tdCatalog.innerHTML = '<div class="section-panel text-slate-500">Aucune Thing Description disponible.</div>';
-                return;
-            }
+            typeGrid.innerHTML = cards + addCard;
 
-            tdCatalog.innerHTML = catalogItems.map(function (item) {
-                const active = item.td_id === currentTdId ? ' active' : '';
-                const properties = Array.isArray(item.properties) ? item.properties.length : 0;
-                const actions = Array.isArray(item.actions) ? item.actions.length : 0;
-                return `
-                    <article class="td-card${active}" data-td-id="${escapeHtml(item.td_id)}">
-                        <div class="flex items-start gap-3 mb-3">
-                            <div class="td-icon"><i class="fas ${getIconForType(item.type)}"></i></div>
-                            <div>
-                                <h3 class="font-black text-slate-800 leading-tight">${escapeHtml(item.title || item.name || item.td_id)}</h3>
-                                <p class="text-sm text-emerald-700 font-bold mt-1">${escapeHtml(item.type || 'Objet IoT')}</p>
-                            </div>
-                        </div>
-                        <p class="text-sm text-slate-600 line-clamp-3">${escapeHtml(item.description || 'Description non fournie.')}</p>
-                        <div class="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-                            <span>${properties} proprietes</span>
-                            <span>${actions} actions</span>
-                        </div>
-                    </article>
-                `;
-            }).join('');
-
-            tdCatalog.querySelectorAll('.td-card').forEach(function (card) {
+            typeGrid.querySelectorAll('[data-type-key]').forEach(function (card) {
                 card.addEventListener('click', function () {
-                    selectTd(card.getAttribute('data-td-id'));
+                    const key = card.getAttribute('data-type-key');
+                    const item = allTypeItems().find(function (candidate) { return candidate.key === key; });
+                    if (item) selectType(item);
                 });
+            });
+
+            document.getElementById('addTypeBtn').addEventListener('click', function () {
+                customTypePanel.classList.toggle('hidden');
+                if (!customTypePanel.classList.contains('hidden')) customTypeInput.focus();
             });
         }
 
         async function loadCatalog() {
-            resetTdDetails();
-            tdCatalog.innerHTML = '';
-            catalogStatus.textContent = 'Chargement du catalogue WoT...';
-            sourceBadge.className = 'status-badge';
-            sourceBadge.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Chargement';
-            reloadTdBtn.disabled = true;
+            reloadTypesBtn.disabled = true;
+            typeGrid.innerHTML = '<div class="col-span-full rounded-2xl bg-white p-5 text-sm font-bold text-slate-500">Chargement des types...</div>';
+            currentTdId = '';
+            currentTd = null;
+            selectedType = null;
 
             try {
                 const response = await fetch(`${apiBase}/wot/things`, {
@@ -409,72 +355,81 @@
                 });
                 const payload = await response.json().catch(function () { return {}; });
                 if (!response.ok) {
-                    throw new Error(payload.detail || 'Impossible de charger les Thing Descriptions.');
+                    throw new Error(payload.detail || 'Impossible de charger les types.');
                 }
 
                 catalogItems = Array.isArray(payload.items) ? payload.items : [];
-                setSourceBadge(payload.source);
-                catalogStatus.textContent = `${catalogItems.length} Thing Descriptions disponibles.`;
-                if (payload.fallback_reason) {
-                    catalogStatus.textContent += ' Catalogue externe indisponible, bascule locale active.';
-                }
-                renderCatalog();
+                renderTypes();
             } catch (error) {
-                console.error('Erreur catalogue WoT:', error);
+                console.error('Erreur catalogue:', error);
                 catalogItems = [];
-                catalogStatus.textContent = error.message || 'Erreur de chargement du catalogue WoT.';
-                tdCatalog.innerHTML = '<div class="section-panel text-red-600 font-bold">Impossible de charger les objets WoT.</div>';
-                setSourceBadge('bundled');
+                renderTypes();
+                alert(error.message || 'Erreur de chargement des types.');
             } finally {
-                reloadTdBtn.disabled = false;
+                reloadTypesBtn.disabled = false;
             }
         }
 
-        async function selectTd(tdId) {
-            if (!tdId) return;
-
-            currentTdId = tdId;
+        async function selectType(item) {
+            selectedType = item;
+            currentTdId = item.td_id;
             currentTd = null;
-            renderCatalog();
-            tdTitle.value = 'Chargement...';
-            tdType.value = 'Chargement...';
-            tdDescription.value = '';
-            tdJson.value = '';
-            renderChips(tdProperties, [], 'property');
-            renderChips(tdActions, [], 'action');
-            renderChips(tdEvents, [], 'event');
+            renderTypes();
 
+            if (item.custom) {
+                currentTd = { custom: true, category: item.type };
+                return;
+            }
+
+            tdLoading = true;
+            submitBtn.disabled = true;
             try {
-                const response = await fetch(`${apiBase}/wot/things/${encodeURIComponent(tdId)}/td`, {
+                const response = await fetch(`${apiBase}/wot/things/${encodeURIComponent(item.td_id)}/td`, {
                     headers: authHeaders()
                 });
                 const payload = await response.json().catch(function () { return {}; });
                 if (!response.ok) {
-                    throw new Error(payload.detail || 'Impossible de recuperer la TD complete.');
+                    throw new Error(payload.detail || 'Impossible de preparer ce type.');
                 }
-
-                const td = payload.thingDescription || {};
-                const summary = payload.summary || {};
-                currentTd = td;
-
-                const properties = keysOf(td.properties).length ? keysOf(td.properties) : (summary.properties || []);
-                const actions = keysOf(td.actions).length ? keysOf(td.actions) : (summary.actions || []);
-                const events = keysOf(td.events).length ? keysOf(td.events) : (summary.events || []);
-                const title = summary.title || td.title || td.name || tdId;
-
-                tdTitle.value = title;
-                tdType.value = extractType(td, summary);
-                tdDescription.value = summary.description || td.description || '';
-                tdJson.value = JSON.stringify(td, null, 2);
-                renderChips(tdProperties, properties, 'property');
-                renderChips(tdActions, actions, 'action');
-                renderChips(tdEvents, events, 'event');
+                currentTd = payload.thingDescription || {};
             } catch (error) {
-                console.error('Erreur TD:', error);
-                alert(error.message || 'Erreur lors de la recuperation de la TD.');
-                resetTdDetails();
-                renderCatalog();
+                console.error('Erreur type:', error);
+                selectedType = null;
+                currentTdId = '';
+                currentTd = null;
+                renderTypes();
+                alert(error.message || 'Erreur lors de la selection du type.');
+            } finally {
+                tdLoading = false;
+                submitBtn.disabled = false;
             }
+        }
+
+        function saveCustomType() {
+            const value = String(customTypeInput.value || '').trim();
+            if (!value) {
+                customTypeInput.focus();
+                return;
+            }
+
+            const existing = allTypeItems().find(function (item) {
+                return item.key === normalizeType(value);
+            });
+            if (existing) {
+                customTypeInput.value = '';
+                customTypePanel.classList.add('hidden');
+                selectType(existing);
+                return;
+            }
+
+            customTypes.push(value);
+            customTypeInput.value = '';
+            customTypePanel.classList.add('hidden');
+            renderTypes();
+            const created = allTypeItems().find(function (item) {
+                return item.key === normalizeType(value);
+            });
+            if (created) selectType(created);
         }
 
         function createOption(value, label) {
@@ -485,7 +440,11 @@
         }
 
         function populateFloors(floors) {
-            layoutFloors = Array.isArray(floors) ? floors : [];
+            layoutFloors = (Array.isArray(floors) ? floors : []).filter(function (floor) {
+                const id = Number(floor && floor.id);
+                return id >= 1 && id <= 11;
+            });
+
             objFloor.innerHTML = '';
             objFloor.appendChild(createOption('', '-- Choisir un etage --'));
 
@@ -528,7 +487,6 @@
                 if (!response.ok) {
                     throw new Error((data && data.detail) || 'Impossible de charger les salles.');
                 }
-
                 populateFloors(Array.isArray(data.floors) ? data.floors : []);
             } catch (error) {
                 console.error('Erreur chargement salles:', error);
@@ -540,8 +498,16 @@
         addForm.addEventListener('submit', async function (event) {
             event.preventDefault();
 
-            if (!currentTdId || !currentTd) {
-                alert('Selectionnez un objet IoT depuis le catalogue WoT.');
+            if (!selectedType || !currentTdId) {
+                alert("Veuillez choisir un type d'objet.");
+                return;
+            }
+            if (tdLoading) {
+                alert('Preparation du type en cours, reessayez dans un instant.');
+                return;
+            }
+            if (!selectedType.custom && !currentTd) {
+                alert("Veuillez selectionner a nouveau le type d'objet.");
                 return;
             }
 
@@ -550,12 +516,12 @@
             const room = String(objRoom.value || '').trim();
 
             if (!localName) {
-                alert("Veuillez saisir le nom local de l'objet.");
+                alert("Veuillez saisir le nom de l'objet.");
                 objLocalName.focus();
                 return;
             }
             if (!floor) {
-                alert("Veuillez choisir un etage.");
+                alert('Veuillez choisir un etage.');
                 objFloor.focus();
                 return;
             }
@@ -568,15 +534,20 @@
             submitBtn.disabled = true;
 
             try {
+                const body = {
+                    td_id: currentTdId,
+                    local_name: localName,
+                    floor: floor,
+                    room: room
+                };
+                if (selectedType.custom) {
+                    body.custom_type = selectedType.type;
+                }
+
                 const response = await fetch(`${apiBase}/things/from-td`, {
                     method: 'POST',
                     headers: authHeaders({ 'Content-Type': 'application/json' }),
-                    body: JSON.stringify({
-                        td_id: currentTdId,
-                        local_name: localName,
-                        floor: floor,
-                        room: room
-                    })
+                    body: JSON.stringify(body)
                 });
 
                 const payload = await response.json().catch(function () { return {}; });
@@ -585,10 +556,10 @@
                     return;
                 }
 
-                alert(payload.message || 'Objet ajoute avec succes depuis sa TD.');
+                alert(payload.message || 'Objet ajoute avec succes.');
                 window.location.href = 'index.html';
             } catch (error) {
-                console.error('Erreur creation depuis TD:', error);
+                console.error('Erreur creation:', error);
                 alert('Erreur de connexion au serveur.');
             } finally {
                 submitBtn.disabled = false;
@@ -599,14 +570,18 @@
             populateRoomsForFloor(objFloor.value);
         });
 
-        reloadTdBtn.addEventListener('click', loadCatalog);
+        saveCustomTypeBtn.addEventListener('click', saveCustomType);
+        customTypeInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveCustomType();
+            }
+        });
+        reloadTypesBtn.addEventListener('click', loadCatalog);
         cancelBtn.addEventListener('click', function () {
             window.location.href = 'index.html';
         });
 
-        renderChips(tdProperties, [], 'property');
-        renderChips(tdActions, [], 'action');
-        renderChips(tdEvents, [], 'event');
         loadCatalog();
         loadRooms();
     </script>
