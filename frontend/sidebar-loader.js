@@ -1218,7 +1218,7 @@
       return;
     }
 
-    var userPagesWithHistoryOverlay = ["user", "localisations-user", "notifications-user", "mesobjet", "parametres-user"];
+    var userPagesWithHistoryOverlay = ["user", "localisations-user", "notifications-user", "mesobjet", "parametres-user", "documatation"];
     if (userPagesWithHistoryOverlay.indexOf(page) >= 0) {
       historyLink.setAttribute("href", "#");
       historyLink.setAttribute("id", "openHistoryOverlay");
