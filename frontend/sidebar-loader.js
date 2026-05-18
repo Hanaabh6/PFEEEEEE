@@ -1218,8 +1218,8 @@
       return;
     }
 
-   var userPagesWithHistoryOverlay = ["user", "localisations-user", "notifications-user", "mesobjet", "parametres-user"];
-if (userPagesWithHistoryOverlay.indexOf(page) >= 0) {
+    var userPagesWithHistoryOverlay = ["user", "localisations-user", "notifications-user", "mesobjet", "parametres-user"];
+    if (userPagesWithHistoryOverlay.indexOf(page) >= 0) {
       historyLink.setAttribute("href", "#");
       historyLink.setAttribute("id", "openHistoryOverlay");
     }
@@ -1260,6 +1260,142 @@ if (userPagesWithHistoryOverlay.indexOf(page) >= 0) {
   if (role === "user") {
     initUnifiedUserFavoritesOverlay(node);
     initUnifiedUserReportsOverlay(node);
+  }
+
+  // Initialiser l'overlay Historique sur toutes les pages user sauf user.html
+  // (user.html a son propre handler intégré)
+  if (role === "user" && page !== "user") {
+    (function initHistoryOverlayForOtherPages() {
+      function getApiBase() {
+        if (!window.APP_CONFIG || !window.APP_CONFIG.API_BASE) return "";
+        return String(window.APP_CONFIG.API_BASE).replace(/\/+$/, "");
+      }
+      function getAuthHeaders() {
+        var token = String(localStorage.getItem("userToken") || "").trim();
+        var headers = { "Content-Type": "application/json" };
+        if (token) headers.Authorization = "Bearer " + token;
+        return headers;
+      }
+      function esc(v) {
+        return String(v == null ? "" : v)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+      function formatDate(val) {
+        if (!val) return "-";
+        try { return new Date(val).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); } catch (e) { return String(val); }
+      }
+
+      // Créer le DOM de l'overlay
+      var style = document.createElement("style");
+      style.textContent = [
+        "#ibHistoryOverlay{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;}",
+        "#ibHistoryOverlay[hidden]{display:none;}",
+        "#ibHistoryBackdrop{position:absolute;inset:0;background:rgba(2,6,23,.66);backdrop-filter:blur(3px);}",
+        "#ibHistoryPanel{position:relative;width:min(860px,calc(100vw - 30px));max-height:calc(100vh - 40px);overflow:auto;border-radius:20px;border:1px solid rgba(148,163,184,.3);background:rgba(255,255,255,.98);box-shadow:0 24px 55px rgba(2,6,23,.35);}",
+        "#ibHistoryHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid #e2e8f0;}",
+        "#ibHistoryHead h3{margin:0;font-size:20px;color:#0f172a;}",
+        "#ibHistoryClose{border:none;width:34px;height:34px;border-radius:999px;background:#e2e8f0;color:#0f172a;font-size:18px;cursor:pointer;line-height:1;}",
+        "#ibHistoryBody{padding:16px 18px;overflow-x:auto;}"
+      ].join("");
+      document.head.appendChild(style);
+
+      var shell = document.createElement("div");
+      shell.id = "ibHistoryOverlay";
+      shell.hidden = true;
+      shell.innerHTML = [
+        '<div id="ibHistoryBackdrop"></div>',
+        '<div id="ibHistoryPanel" role="dialog" aria-modal="true">',
+          '<div id="ibHistoryHead">',
+            '<h3>Historique</h3>',
+            '<button id="ibHistoryClose" aria-label="Fermer">&times;</button>',
+          '</div>',
+          '<div id="ibHistoryBody"><p style="color:#64748b;text-align:center;padding:20px;">Chargement...</p></div>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(shell);
+
+      function closeHistory() {
+        shell.hidden = true;
+        document.body.style.overflow = "";
+      }
+
+      document.getElementById("ibHistoryBackdrop").addEventListener("click", closeHistory);
+      document.getElementById("ibHistoryClose").addEventListener("click", closeHistory);
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !shell.hidden) closeHistory();
+      });
+
+      async function openHistory() {
+        shell.hidden = false;
+        document.body.style.overflow = "hidden";
+        var body = document.getElementById("ibHistoryBody");
+        body.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px;">Chargement...</p>';
+
+        try {
+          var apiBase = getApiBase();
+          if (!apiBase) throw new Error("API non configurée");
+          var resp = await fetch(apiBase + "/user/history", { method: "GET", headers: getAuthHeaders() });
+          if (!resp.ok) throw new Error("Erreur " + resp.status);
+          var data = await resp.json();
+          var list = Array.isArray(data) ? data : [];
+
+          // Filtrer par utilisateur courant
+          var currentUserId = String(localStorage.getItem("userId") || "").trim();
+          var currentEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+          if (currentUserId || currentEmail) {
+            list = list.filter(function (entry) {
+              var eId = String((entry && entry.user_id) || "").trim();
+              var eEmail = String((entry && entry.email) || "").trim().toLowerCase();
+              if (currentUserId && eId) return eId === currentUserId;
+              if (currentEmail && eEmail) return eEmail === currentEmail;
+              return true;
+            });
+          }
+
+          if (!list.length) {
+            body.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px;">Aucune activité récente.</p>';
+            return;
+          }
+
+          var rows = list.slice(0, 80).map(function (entry) {
+            var status = String(entry.status || "-");
+            var badge = status.toLowerCase().indexOf("succes") >= 0
+              ? "background:#dcfce7;color:#166534;"
+              : "background:#fee2e2;color:#b91c1c;";
+            return "<tr>" +
+              "<td style='padding:10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;color:#475569;'>" + esc(formatDate(entry.created_at || entry.date)) + "</td>" +
+              "<td style='padding:10px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a;'>" + esc(entry.action || "-") + "</td>" +
+              "<td style='padding:10px;border-bottom:1px solid #e2e8f0;color:#334155;max-width:320px;overflow:hidden;text-overflow:ellipsis;'>" + esc(entry.detail || "-") + "</td>" +
+              "<td style='padding:10px;border-bottom:1px solid #e2e8f0;'><span style='display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;" + badge + "'>" + esc(status) + "</span></td>" +
+              "</tr>";
+          }).join("");
+
+          body.innerHTML = "<table style='width:100%;border-collapse:collapse;'>" +
+            "<thead><tr>" +
+              "<th style='text-align:left;padding:10px;border-bottom:1px solid #cbd5e1;font-size:12px;color:#64748b;text-transform:uppercase;'>Date</th>" +
+              "<th style='text-align:left;padding:10px;border-bottom:1px solid #cbd5e1;font-size:12px;color:#64748b;text-transform:uppercase;'>Action</th>" +
+              "<th style='text-align:left;padding:10px;border-bottom:1px solid #cbd5e1;font-size:12px;color:#64748b;text-transform:uppercase;'>Détail</th>" +
+              "<th style='text-align:left;padding:10px;border-bottom:1px solid #cbd5e1;font-size:12px;color:#64748b;text-transform:uppercase;'>Statut</th>" +
+            "</tr></thead>" +
+            "<tbody>" + rows + "</tbody></table>";
+        } catch (err) {
+          console.error("[sidebar-loader] Erreur historique:", err);
+          body.innerHTML = '<p style="color:#b91c1c;text-align:center;padding:20px;">Erreur lors du chargement de l\'historique.</p>';
+        }
+      }
+
+      // Écouter le clic sur le lien Historique dans la sidebar
+      // On utilise un délégateur sur document car le lien est injecté dynamiquement
+      document.addEventListener("click", function (e) {
+        var trigger = e.target.closest("#openHistoryOverlay");
+        if (!trigger) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openHistory();
+      }, true);
+
+    })();
   }
 
   // Load user favorites from API on all pages (needed before overlay init)
