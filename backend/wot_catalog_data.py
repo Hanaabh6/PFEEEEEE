@@ -316,7 +316,7 @@ TD_CATALOG: list[dict[str, Any]] = [
             "name": "Lecteur de badge securise",
             "description": "Objet IoT de controle d'acces pour zones securisees.",
             "@type": "Product",
-            "category": "Accès",
+            "category": "Contrôle Accès",
             "securityDefinitions": {
                 "bearer_sc": {"scheme": "bearer", "format": "jwt", "in": "header"},
             },
@@ -804,7 +804,7 @@ TD_CATALOG: list[dict[str, Any]] = [
             "name": "Machine Café connectée",
             "description": "Machine cafe intelligente pour preparation, maintenance et suivi des niveaux.",
             "@type": "Product",
-            "category": "Machine Café",
+            "category": "Machine a Café",
             "securityDefinitions": {
                 "nosec_sc": {"scheme": "nosec"},
             },

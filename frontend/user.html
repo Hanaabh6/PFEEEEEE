@@ -948,6 +948,7 @@ let userReports = JSON.parse(localStorage.getItem("userReports") || "[]");
 let userThingsAutoRefreshTimer = null;
 let userObjectTypeFilters = [];
 let activeQuickFilterQuery = "";
+const ALL_OBJECTS_FILTER_QUERY = "__all_objects__";
 
 if (!userToken) window.location.href = "login.html";
 
@@ -1236,11 +1237,9 @@ function initQuickPositionBar() {
 
   quickFloorSelectUser.addEventListener("change", function () {
     renderQuickRoomOptions("");
-    persistQuickUserSelection(false);
   });
 
   quickRoomSelectUser.addEventListener("change", function () {
-    persistQuickUserSelection(false);
   });
 
   quickSetPositionBtnUser.addEventListener("click", function () {
@@ -1250,7 +1249,6 @@ function initQuickPositionBar() {
   const openUserMapBtn = document.getElementById("openUserMapBtn");
   if (openUserMapBtn) {
     openUserMapBtn.addEventListener("click", function () {
-      persistQuickUserSelection(false);
     });
   }
 }
@@ -1271,6 +1269,22 @@ function extractTypeFilters(list) {
   });
 }
 
+function resolveExactTypeFilter(query, list) {
+  const queryKey = compactSearchText(query);
+  if (!queryKey) return '';
+
+  const labels = Array.isArray(list) ? extractTypeFilters(list) : [];
+  for (let i = 0; i < labels.length; i += 1) {
+    const label = String(labels[i] || '').trim();
+    if (!label) continue;
+    if (compactSearchText(label) === queryKey) {
+      return label;
+    }
+  }
+
+  return '';
+}
+
 function renderQuickFilters() {
   const userQuickFilters = document.getElementById('userQuickFilters');
   if (!userQuickFilters) return;
@@ -1279,6 +1293,7 @@ function renderQuickFilters() {
   const buttons = userObjectTypeFilters.map(function (label) {
     return { label: label, query: label };
   });
+  buttons.push({ label: 'Tout', query: ALL_OBJECTS_FILTER_QUERY });
 
   userQuickFilters.innerHTML = buttons.map(function (button) {
     return `<button type="button" class="filter-chip" data-quick-query="${escapeHtml(button.query)}">${escapeHtml(button.label)}</button>`;
@@ -1627,6 +1642,10 @@ function normalizeText(value) {
     .trim();
 }
 
+function compactSearchText(value) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, '');
+}
+
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, function (ch) {
     if (ch === '&') return '&amp;';
@@ -1748,23 +1767,6 @@ async function loadUserProfile() {
     localStorage.setItem(PROFILE_NAME_KEY, displayName);
     localStorage.setItem("userRole", "user");
     localStorage.setItem("userEmail", email);
-
-    // Conserver la derniere localisation connue si le backend ne renvoie rien.
-    if (profile.localisation && typeof profile.localisation === "object") {
-      const backendRoom = String(profile.localisation.room || "").trim();
-      if (backendRoom) {
-        localStorage.setItem("user_room", backendRoom);
-      }
-      if (profile.localisation.x !== undefined && profile.localisation.x !== null) {
-        localStorage.setItem("user_x", String(profile.localisation.x));
-      }
-      if (profile.localisation.y !== undefined && profile.localisation.y !== null) {
-        localStorage.setItem("user_y", String(profile.localisation.y));
-      }
-      if (profile.localisation.z !== undefined && profile.localisation.z !== null) {
-        localStorage.setItem("user_z", String(profile.localisation.z));
-      }
-    }
 
     applyDisplayName(displayName);
     if (window.refreshSidebarProfileCards) {
@@ -1976,12 +1978,14 @@ async function loadUserThings(query) {
     await loadRoomCoords();
 
     const normalizedQuery = String(query || "").trim();
+    const showAllObjects = normalizedQuery === ALL_OBJECTS_FILTER_QUERY;
+    const apiQuery = showAllObjects ? '' : normalizedQuery;
     if (objectsSection) {
-      objectsSection.hidden = !normalizedQuery;
+      objectsSection.hidden = !(normalizedQuery || showAllObjects);
     }
     if (userEmptyState) {
-      userEmptyState.classList.toggle("is-visible", !normalizedQuery);
-      userEmptyState.setAttribute("aria-hidden", normalizedQuery ? "true" : "false");
+      userEmptyState.classList.toggle("is-visible", !normalizedQuery && !showAllObjects);
+      userEmptyState.setAttribute("aria-hidden", (normalizedQuery || showAllObjects) ? "true" : "false");
     }
     if (userNoResultsMessage) {
       userNoResultsMessage.classList.remove("is-visible");
@@ -2020,7 +2024,7 @@ async function loadUserThings(query) {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        search_query: normalizedQuery,
+        search_query: apiQuery,
         user_room,
         user_x,
         user_y,
@@ -2036,8 +2040,15 @@ async function loadUserThings(query) {
     const visibleList = (list || []).filter(function(item){
       try{ return toStatusCode(getObjectStatusSource(item)) !== 'broken'; }catch(e){ return true; }
     });
+    const exactTypeFilter = showAllObjects ? '' : resolveExactTypeFilter(normalizedQuery, visibleList);
+    const filteredList = exactTypeFilter
+      ? visibleList.filter(function (item) {
+          const itemType = String(item && (item.type || item['@type']) ? (item.type || item['@type']) : '').trim();
+          return compactSearchText(itemType) === compactSearchText(exactTypeFilter);
+        })
+      : visibleList;
     // Sort: available (active) first, then in_use, then inactive
-    visibleList.sort(function(a,b){
+    filteredList.sort(function(a,b){
       const rank = function(it){ const s=toStatusCode(getObjectStatusSource(it)); if(s==='active')return 0; if(s==='in_use')return 1; return 2; };
       return rank(a) - rank(b);
     });
@@ -2049,7 +2060,7 @@ async function loadUserThings(query) {
       userCurrentPos.textContent = user_room || "Non definie";
     }
 
-    if (normalizedQuery && !visibleList.length) {
+    if ((normalizedQuery || showAllObjects) && !filteredList.length) {
       objectsBody.innerHTML = "";
       if (objectsSection) {
         objectsSection.hidden = true;
@@ -2062,8 +2073,8 @@ async function loadUserThings(query) {
       return;
     }
 
-    if (normalizedQuery) {
-      objectsBody.innerHTML = visibleList.map(function (item) {
+    if (normalizedQuery || showAllObjects) {
+      objectsBody.innerHTML = filteredList.map(function (item) {
         const objectId = String(item.id || item._id || "").trim();
         const statusCode = toStatusCode(getObjectStatusSource(item));
         const statusClass = statusCode === "active" ? "status-active" : "status-inactive";
@@ -2117,12 +2128,12 @@ async function loadUserThings(query) {
         `;
       }).join("");
 
-      await triggerNearbyNotification(visibleList, user_room);
+      await triggerNearbyNotification(filteredList, user_room);
     } else {
       objectsBody.innerHTML = "";
     }
 
-    syncQuickFilters(visibleList, query);
+    syncQuickFilters(filteredList, query);
 
     objectsBody.querySelectorAll(".object-row").forEach((row) => {
       row.addEventListener("click", () => openObjectDecision(row));
@@ -2883,12 +2894,9 @@ async function initUserDashboard() {
     return;
   }
 
-  // Récupérer et afficher la position de l'utilisateur
+  // Relire la position déjà enregistrée pour la session courante.
   const storedRoom = localStorage.getItem('user_room') || 'Non définie';
   const user_room = canonicalRoomFromCache(storedRoom) || storedRoom;
-  if (user_room !== storedRoom && user_room !== 'Non définie') {
-    localStorage.setItem('user_room', user_room);
-  }
   if (userCurrentPos) {
     userCurrentPos.textContent = user_room;
   }

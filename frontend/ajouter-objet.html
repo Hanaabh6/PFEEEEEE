@@ -442,7 +442,7 @@
         function populateFloors(floors) {
             layoutFloors = (Array.isArray(floors) ? floors : []).filter(function (floor) {
                 const id = Number(floor && floor.id);
-                return id >= 1 && id <= 11;
+                return id >= 0 && id <= 11;
             });
 
             objFloor.innerHTML = '';

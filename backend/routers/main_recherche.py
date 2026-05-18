@@ -168,7 +168,62 @@ FLOOR_BY_ROOM_NORM = {
     for room in (floor.get("rooms") or [])
     if normalize_text(room)
 }
+# Mapper les noms complets d'etages a leurs IDs
+FLOOR_NAME_TO_ID = {
+    normalize_text(floor.get("name", "")): int(floor.get("id", -1))
+    for floor in ARCHI_DATA
+    if floor.get("name")
+}
 
+FLOOR_QUERY_TO_ID = dict(FLOOR_NAME_TO_ID)
+for floor in ARCHI_DATA:
+    floor_name_norm = normalize_text(floor.get("name", ""))
+    floor_id = int(floor.get("id", -1))
+    if not floor_name_norm:
+        continue
+
+    if "-" in floor_name_norm:
+        alias = floor_name_norm.split("-", 1)[1].strip()
+        if alias:
+            FLOOR_QUERY_TO_ID.setdefault(alias, floor_id)
+
+GENERIC_FLOOR_QUERY_TERMS = {"etage", "etg", "niveau", "floor"}
+
+
+def _compact_text(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", normalize_text(text))
+
+
+FLOOR_QUERY_COMPACT_TO_ID = {
+    _compact_text(floor_query): floor_id
+    for floor_query, floor_id in FLOOR_QUERY_TO_ID.items()
+    if _compact_text(floor_query)
+}
+
+
+def _resolve_floor_query_prefix(q_compact: str) -> int | None:
+    if len(q_compact) < 3:
+        return None
+
+    matched_ids: set[int] = set()
+    for floor_query, floor_id in FLOOR_QUERY_TO_ID.items():
+        floor_compact = _compact_text(floor_query)
+        if not floor_compact:
+            continue
+        if floor_compact.startswith(q_compact) or q_compact.startswith(floor_compact):
+            matched_ids.add(int(floor_id))
+
+    if len(matched_ids) == 1:
+        return next(iter(matched_ids))
+
+    return None
+
+
+def _flexible_term_regex(text: str) -> str:
+    compact = _compact_text(text)
+    if len(compact) < 3:
+        return re.escape(text)
+    return r"[\W_]*".join(re.escape(char) for char in compact)
 
 def _tokenize_query(text: str) -> list[str]:
     # Tokenization robuste: retire ponctuation/accents et conserve uniquement les mots utiles.
@@ -204,13 +259,24 @@ def _extract_floor_query(raw_query: str) -> int | None:
     if not q_norm:
         return None
 
+    if q_norm in FLOOR_QUERY_TO_ID:
+        return FLOOR_QUERY_TO_ID[q_norm]
+
+    q_compact = _compact_text(q_norm)
+    if q_compact in FLOOR_QUERY_COMPACT_TO_ID:
+        return FLOOR_QUERY_COMPACT_TO_ID[q_compact]
+
+    prefix_floor_id = _resolve_floor_query_prefix(q_compact)
+    if prefix_floor_id is not None:
+        return prefix_floor_id
+
     if q_norm.isdigit():
         try:
             return int(q_norm)
         except (TypeError, ValueError):
             return None
 
-    if "rdc" in q_norm or "rez de chaussee" in q_norm or "rez-de-chaussee" in q_norm:
+    if "rdc" in q_norm or re.search(r"\brez[\s-]*de[\s-]*chaus+s?e{1,2}\b", q_norm):
         return 0
 
     match = re.search(r"(?:etage|etg|niveau|floor)\s*([0-9]{1,2})", q_norm)
@@ -276,6 +342,17 @@ def _is_floor_only_query(raw_query: str, floor_filter: int | None) -> bool:
     q_norm = normalize_text(raw_query)
     if not q_norm:
         return False
+    if q_norm in FLOOR_QUERY_TO_ID:
+        return True
+    q_compact = _compact_text(q_norm)
+    if q_compact in FLOOR_QUERY_COMPACT_TO_ID:
+        return True
+    if _resolve_floor_query_prefix(q_compact) is not None:
+        return True
+    if q_norm == "rdc" or re.fullmatch(r"rez[\s-]*de[\s-]*chaus+s?e{1,2}", q_norm):
+        return True
+    if q_norm in GENERIC_FLOOR_QUERY_TERMS:
+        return True
     if q_norm.isdigit():
         return True
     return bool(re.fullmatch(r"(?:etage|etg|niveau|floor)\s*[0-9]{1,2}", q_norm))
@@ -377,6 +454,7 @@ def _collect_lexical_candidates(query_norm: str, tokens: list[str], limit: int =
     is_short = len(query_norm) <= 2
     for term in uniq_terms:
         safe = re.escape(term)
+        flexible_safe = _flexible_term_regex(term)
         # Pendant la saisie initiale, utiliser des matchs prefixes pour eviter le bruit.
         if is_ultra_short:
             mongo_or.extend([
@@ -402,6 +480,16 @@ def _collect_lexical_candidates(query_norm: str, tokens: list[str], limit: int =
                 {"location.room": {"$regex": safe, "$options": "i"}},
                 {"location": {"$regex": safe, "$options": "i"}},
                 {"status": {"$regex": safe, "$options": "i"}},
+            ])
+
+        # Match souple pour les salles/etages sans espace: "salleduconseil" -> "Salle du Conseil".
+        if flexible_safe != safe and len(_compact_text(term)) >= 3:
+            mongo_or.extend([
+                {"search_name_norm": {"$regex": flexible_safe, "$options": "i"}},
+                {"name": {"$regex": flexible_safe, "$options": "i"}},
+                {"location.room": {"$regex": flexible_safe, "$options": "i"}},
+                {"location.name": {"$regex": flexible_safe, "$options": "i"}},
+                {"location": {"$regex": flexible_safe, "$options": "i"}},
             ])
 
     adaptive_limit = 120 if is_ultra_short else (260 if is_short else limit)
@@ -534,10 +622,11 @@ def _prefix_bonus(item: dict, query_norm: str, tokens: list[str]) -> int:
 
 def _search_logic(data: SearchRequest) -> list[dict]:
     raw_query = (data.search_query or "").strip()
+    q_norm = normalize_text(raw_query)
     position_defined = _has_defined_position(data)
     floor_filter = _extract_floor_query(raw_query)
 
-    if not raw_query:
+    if not raw_query or q_norm in GENERIC_FLOOR_QUERY_TERMS:
         results = list(things_collection.find({}).sort("name", 1))
         if position_defined:
             compute_distance_and_room_flags(results, data.user_x, data.user_y, data.user_z, data.user_room)
@@ -565,8 +654,6 @@ def _search_logic(data: SearchRequest) -> list[dict]:
         for item in results:
             item["_id"] = str(item["_id"])
         return results
-
-    q_norm = normalize_text(raw_query)
 
     matching_status = [
         s.replace("hors ligne", "hors-ligne")

@@ -1146,41 +1146,33 @@
       return control && typeof control.actions === "object" ? control.actions : {};
     }
 
-    function hasActionHref(actionConfig) {
-      return Boolean(actionConfig && typeof actionConfig === "object" && String(actionConfig.href || "").trim());
-    }
-
-    function hasControlAction(item, actionName) {
-      const actions = getControlActions(item);
-      const cfg = actions[String(actionName || "").trim().toLowerCase()];
-      return hasActionHref(cfg);
-    }
-
     function hasRemotePowerControls(item) {
-      return hasControlAction(item, "on") && hasControlAction(item, "off");
+      const control = item && typeof item.control === "object" ? item.control : {};
+      const actions = getControlActions(item);
+      return Boolean(control.endpoint && actions.on && actions.off);
     }
 
     function hasTvControls(item) {
-      return ["play", "next", "prev", "volume-up", "volume-down", "mute"].some(function (name) {
-        return hasControlAction(item, name);
-      });
+      const control = item && typeof item.control === "object" ? item.control : {};
+      const actions = getControlActions(item);
+      return Boolean(control.endpoint && actions.play && actions.next && actions.prev && actions["volume-up"] && actions["volume-down"] && actions.mute);
     }
 
     function getGenericControlActions(item) {
+      if (getRemoteObjectKind(item)) return [];
+      const control = item && typeof item.control === "object" ? item.control : {};
       const actions = getControlActions(item);
-      if (!actions || typeof actions !== "object") return [];
+      if (!control.endpoint || !actions || typeof actions !== "object") return [];
 
       return Object.keys(actions)
         .map(function (name) {
           const cfg = actions[name] && typeof actions[name] === "object" ? actions[name] : {};
           return {
             name: String(name || "").trim().toLowerCase(),
-            label: String(cfg.label || name || "").trim(),
-            href: String(cfg.href || "").trim(),
-            input: cfg.input && typeof cfg.input === "object" ? cfg.input : null
+            label: String(cfg.label || name || "").trim()
           };
         })
-        .filter(function (action) { return Boolean(action.name && action.href); });
+        .filter(function (action) { return Boolean(action.name); });
     }
 
     function getGenericActionIcon(actionName) {
@@ -1190,12 +1182,6 @@
       if (normalized.includes("print")) return "fa-print";
       if (normalized.includes("scan")) return "fa-file-lines";
       if (normalized.includes("calibr")) return "fa-sliders";
-      if (normalized.includes("brightness")) return "fa-sun";
-      if (normalized.includes("trigger")) return "fa-triangle-exclamation";
-      if (normalized.includes("silence") || normalized.includes("mute")) return "fa-volume-xmark";
-      if (normalized.includes("reset")) return "fa-rotate-right";
-      if (normalized.includes("brew")) return "fa-mug-hot";
-      if (normalized.includes("announce")) return "fa-bullhorn";
       if (normalized.includes("lock")) return "fa-lock";
       if (normalized.includes("unlock")) return "fa-lock-open";
       return "fa-bolt";
@@ -1209,13 +1195,7 @@
         printtestpage: "Imprimer une page de test",
         calibrate: "Calibrer",
         unlock: "Deverrouiller",
-        lock: "Verrouiller",
-        trigger: "Declencher",
-        silence: "Silence",
-        reset: "Reinitialiser",
-        setbrightness: "Regler l'intensite",
-        brew: "Preparer",
-        announce: "Annoncer"
+        lock: "Verrouiller"
       };
       const key = raw.replace(/[^a-z0-9]/gi, "").toLowerCase();
       if (known[key]) return known[key];
@@ -1276,7 +1256,6 @@
       const remoteControls = (lampDetected || alarmDetected) && hasRemotePowerControls(item);
       const tvControls = tvDetected && hasTvControls(item);
       const genericActions = getGenericControlActions(item);
-      const hasAnyRemoteControls = genericActions.length > 0;
       const remoteState = remoteKind ? getRemotePowerState(item) : "off";
       const tvChannels = tvDetected ? getTvChannels(item) : [];
       const currentChannel = String(item && item.device_state && item.device_state.channel ? item.device_state.channel : "").trim();
@@ -1295,33 +1274,31 @@
                 : tr("my_objects_tv_state_ready", "Smart TV prete"))
           : tr("status_in_use", "En utilisation");
       const chipClass = remoteKind
-        ? (hasAnyRemoteControls ? (remoteState === "on" ? "on" : "off") : "neutral")
+        ? ((remoteControls || tvControls) ? (remoteState === "on" ? "on" : "off") : "neutral")
         : "neutral";
       const chipIcon = lampDetected
-        ? (hasAnyRemoteControls ? (remoteState === "on" ? "fa-power-off" : "fa-moon") : "fa-link")
+        ? (remoteControls ? (remoteState === "on" ? "fa-power-off" : "fa-moon") : "fa-link")
         : alarmDetected
-          ? (hasAnyRemoteControls ? (remoteState === "on" ? "fa-bell" : "fa-bell-slash") : "fa-link")
+          ? (remoteControls ? (remoteState === "on" ? "fa-bell" : "fa-bell-slash") : "fa-link")
         : tvDetected
-          ? (hasAnyRemoteControls ? "fa-tv" : "fa-link")
+          ? (tvControls ? "fa-tv" : "fa-link")
         : "fa-cube";
       const chipLabel = remoteKind
-        ? (hasAnyRemoteControls ? stateLabel : tr("my_objects_remote_not_configured", "Controle distant non configure"))
-        : (hasAnyRemoteControls ? tr("my_objects_available_actions", "Actions disponibles") : tr("status_in_use", "En utilisation"));
+        ? ((remoteControls || tvControls) ? stateLabel : tr("my_objects_remote_not_configured", "Controle distant non configure"))
+        : tr("status_in_use", "En utilisation");
       const featureSubtitle = lampDetected
-        ? (hasAnyRemoteControls
-            ? tr("my_objects_lamp_panel_sub", "Cette lampe peut etre controlee directement depuis cette fiche.")
+        ? (remoteControls
+            ? tr("my_objects_lamp_panel_sub", "Cette lampe peut etre allumee ou eteinte directement depuis cette fiche.")
             : tr("my_objects_lamp_panel_missing_sub", "Cette lampe est detectee, mais aucun endpoint reseau n'a encore ete configure par l'admin."))
         : alarmDetected
-          ? (hasAnyRemoteControls
-              ? tr("my_objects_alarm_panel_sub", "Cette alarme peut etre controlee directement depuis cette fiche.")
+          ? (remoteControls
+              ? tr("my_objects_alarm_panel_sub", "Cette alarme peut etre activee ou arretee directement depuis cette fiche.")
               : tr("my_objects_alarm_panel_missing_sub", "Cette alarme est detectee, mais aucun endpoint reseau n'a encore ete configure par l'admin."))
           : tvDetected
-            ? (hasAnyRemoteControls
-                ? tr("my_objects_tv_panel_sub", "Controlez cette Smart TV avec les actions declarees dans sa Thing Description.")
+            ? (tvControls
+                ? tr("my_objects_tv_panel_sub", "Controlez cette Smart TV en direct: chaines, suivant/precedent, volume et mute.")
                 : tr("my_objects_tv_panel_missing_sub", "Cette TV est detectee, mais les endpoints TV ne sont pas encore configures."))
-        : hasAnyRemoteControls
-          ? tr("my_objects_generic_panel_sub", "Commandes declarees dans la Thing Description de cet objet.")
-          : tr("my_objects_generic_panel_sub", "Cette fiche affiche les informations de l'objet. D'autres commandes seront ajoutees selon le type.");
+        : tr("my_objects_generic_panel_sub", "Cette fiche affiche les informations de l'objet. D'autres commandes seront ajoutees selon le type.");
       const heroIcon = lampDetected ? "fa-lightbulb" : (alarmDetected ? "fa-bell" : (tvDetected ? "fa-tv" : "fa-cube"));
       const actionHelp = lampDetected
         ? tr("my_objects_lamp_action_help", "Choisissez si vous voulez allumer ou eteindre votre lampe.")
@@ -1391,13 +1368,75 @@
 
           <section class="feature-panel">
             <h4>${sanitize(tr("my_objects_available_actions", "Actions disponibles"))}</h4>
-            ${genericActions.length ? `
+            ${(lampDetected || alarmDetected) && remoteControls ? `
+              <p class="feature-description">${sanitize(actionHelp)}</p>
+              <div class="lamp-actions">
+                <button
+                  type="button"
+                  class="lamp-action-btn on ${remoteState === "on" ? "active" : ""}"
+                  data-feature-action="remote-power"
+                  data-next-state="on"
+                  data-thing-id="${sanitize(safeId)}"
+                  ${remoteState === "on" ? "disabled" : ""}
+                >
+                  <i class="fas ${actionOnIcon}"></i> ${sanitize(actionOnLabel)}
+                </button>
+                <button
+                  type="button"
+                  class="lamp-action-btn off ${remoteState === "off" ? "active" : ""}"
+                  data-feature-action="remote-power"
+                  data-next-state="off"
+                  data-thing-id="${sanitize(safeId)}"
+                  ${remoteState === "off" ? "disabled" : ""}
+                >
+                  <i class="fas ${actionOffIcon}"></i> ${sanitize(actionOffLabel)}
+                </button>
+              </div>
+            ` : tvDetected && tvControls ? `
+              <p class="feature-description">${sanitize(actionHelp)}</p>
+              <p class="tv-current">
+                <i class="fas fa-signal"></i>
+                ${sanitize(currentChannel ? tr("my_objects_tv_now_playing", "Lecture en cours: {channel}", { channel: currentChannelLabel, name: currentChannelLabel }) : tr("my_objects_tv_now_playing_unknown", "Aucune chaine active detectee"))}
+              </p>
+              <div class="tv-actions-grid">
+                <button type="button" class="tv-btn primary" data-feature-action="remote-tv" data-tv-action="prev" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-backward-step"></i> ${sanitize(tr("my_objects_tv_prev", "Chaine precedente"))}
+                </button>
+                <button type="button" class="tv-btn primary" data-feature-action="remote-tv" data-tv-action="next" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-forward-step"></i> ${sanitize(tr("my_objects_tv_next", "Chaine suivante"))}
+                </button>
+                <button type="button" class="tv-btn" data-feature-action="remote-tv" data-tv-action="volume-up" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-volume-high"></i> ${sanitize(tr("my_objects_tv_volume_up", "Volume +"))}
+                </button>
+                <button type="button" class="tv-btn" data-feature-action="remote-tv" data-tv-action="volume-down" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-volume-low"></i> ${sanitize(tr("my_objects_tv_volume_down", "Volume -"))}
+                </button>
+                <button type="button" class="tv-btn warn" data-feature-action="remote-tv" data-tv-action="mute" data-thing-id="${sanitize(safeId)}" style="grid-column: 1 / -1;">
+                  <i class="fas fa-volume-xmark"></i> ${sanitize(tr("my_objects_tv_mute", "Mute"))}
+                </button>
+              </div>
+              <h4 style="margin: 8px 0 6px; color:#0f172a;">${sanitize(tr("my_objects_tv_channels", "Chaines"))}</h4>
+              <div class="tv-channel-grid">
+                ${tvChannels.map((ch) => `
+                  <button
+                    type="button"
+                    class="tv-btn ${String(ch) === currentChannel ? "primary" : ""}"
+                    data-feature-action="remote-tv"
+                    data-tv-action="play"
+                    data-channel-name="${sanitize(String(ch))}"
+                    data-thing-id="${sanitize(safeId)}"
+                  >
+                    <i class="fas fa-play"></i> ${sanitize(getTvChannelLabel(ch))}
+                  </button>
+                `).join("")}
+              </div>
+            ` : genericActions.length ? `
               <p class="feature-description">${sanitize(tr("my_objects_generic_action_help", "Commandes declarees dans la Thing Description de cet objet."))}</p>
               <div class="tv-actions-grid">
                 ${genericActions.map((action) => `
                   <button
                     type="button"
-                    class="tv-btn ${action.name === "on" || action.name === "play" ? "primary" : ""}"
+                    class="tv-btn ${action.name === "on" ? "primary" : ""}"
                     data-feature-action="remote-generic"
                     data-generic-action="${sanitize(action.name)}"
                     data-thing-id="${sanitize(safeId)}"

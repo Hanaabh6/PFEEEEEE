@@ -526,6 +526,92 @@ def _summarize_user_history(rows: list[dict]) -> dict[str, dict]:
     return summary
 
 
+def _summarize_user_borrowed_objects(user_ids: list[str]) -> dict[str, list[dict]]:
+    summary: dict[str, list[dict]] = {}
+    safe_user_ids = [str(user_id or "").strip() for user_id in user_ids if str(user_id or "").strip()]
+    if not safe_user_ids:
+        return summary
+
+    try:
+        rows = list(
+            user_history_collection.find(
+                {
+                    "user_id": {"$in": safe_user_ids},
+                    "action": "EMPRUNT_DEBUT",
+                    "returned": False,
+                },
+                {
+                    "_id": 0,
+                    "user_id": 1,
+                    "thing_id": 1,
+                    "thing_name": 1,
+                    "created_at": 1,
+                    "date": 1,
+                    "planned_return_at": 1,
+                    "planned_duration_minutes": 1,
+                    "borrow_mode": 1,
+                    "salle": 1,
+                },
+            ).sort("created_at", -1)
+        )
+    except Exception as e:
+        print(f"Erreur lecture emprunts admin users: {e}")
+        return summary
+
+    thing_cache: dict[str, dict] = {}
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+
+        user_id = str(row.get("user_id", "") or "").strip()
+        thing_id = str(row.get("thing_id", "") or "").strip()
+        if not user_id or not thing_id:
+            continue
+
+        pair_key = (user_id, thing_id)
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        thing = thing_cache.get(thing_id)
+        if thing is None:
+            try:
+                thing = things_collection.find_one({"id": thing_id}) or {}
+            except Exception:
+                thing = {}
+            thing_cache[thing_id] = thing
+
+        loc = thing.get("location") if isinstance(thing.get("location"), dict) else {}
+        item = {
+            "thing_id": thing_id,
+            "name": str(thing.get("name") or row.get("thing_name") or "Objet").strip() or "Objet",
+            "type": str(thing.get("type") or thing.get("@type") or "-").strip() or "-",
+            "status": str(thing.get("status") or "en_utilisation").strip() or "en_utilisation",
+            "location": str(loc.get("room") or loc.get("name") or row.get("salle") or "-").strip() or "-",
+            "taken_at": str(row.get("created_at") or "").strip(),
+            "planned_return_at": str(
+                (thing.get("current_borrow") if isinstance(thing.get("current_borrow"), dict) else {}).get("planned_return_at")
+                or row.get("planned_return_at")
+                or ""
+            ).strip(),
+            "planned_duration_minutes": int(
+                (thing.get("current_borrow") if isinstance(thing.get("current_borrow"), dict) else {}).get("planned_duration_minutes")
+                or row.get("planned_duration_minutes")
+                or 0
+            ),
+            "borrow_mode": str(
+                (thing.get("current_borrow") if isinstance(thing.get("current_borrow"), dict) else {}).get("mode")
+                or row.get("borrow_mode")
+                or ""
+            ).strip(),
+        }
+        summary.setdefault(user_id, []).append(item)
+
+    return summary
+
+
 @auth_router.post("/login")
 def login(data: LoginRequest = Body(...)):
     email = data.email.strip().lower()
@@ -784,6 +870,7 @@ def get_admin_users(request: Request):
     user_ids = sorted(set(profile_map.keys()) | set(auth_map.keys()))
 
     history_summary: dict[str, dict] = {}
+    borrowed_summary: dict[str, list[dict]] = {}
     if user_ids:
         try:
             history_rows = list(
@@ -807,6 +894,8 @@ def get_admin_users(request: Request):
             print(f"Erreur lecture historique admin users: {e}")
             history_summary = {}
 
+        borrowed_summary = _summarize_user_borrowed_objects(user_ids)
+
     result = []
     for user_id in user_ids:
         if not user_id:
@@ -816,6 +905,7 @@ def get_admin_users(request: Request):
         favorites_raw = item.get("favorites", [])
         favorites = _normalize_favorites(favorites_raw if isinstance(favorites_raw, list) else [])
         history_info = history_summary.get(user_id, {})
+        borrowed_objects = borrowed_summary.get(user_id, [])
         last_profile_update = _pick_profile_update_value(item)
         email = str(item.get("email", "") or "")
         role = str(item.get("role", "user") or "user").strip().lower() or "user"
@@ -828,6 +918,8 @@ def get_admin_users(request: Request):
                 "display_name": _display_name_from_profile(email, item),
                 "favorites_count": len(favorites),
                 "favorites": favorites,
+                "borrowed_count": len(borrowed_objects),
+                "borrowed_objects": borrowed_objects,
                 "history_count": int(history_info.get("history_count", 0) or 0),
                 "report_count": int(history_info.get("report_count", 0) or 0),
                 "report_items": history_info.get("report_items", []),
