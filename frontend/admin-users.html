@@ -208,6 +208,16 @@
       box-shadow: 0 10px 22px rgba(8, 17, 31, 0.06);
     }
 
+    .button-danger {
+      background: #dc2626;
+      color: #fff;
+      box-shadow: 0 12px 22px rgba(185, 28, 28, 0.25);
+    }
+
+    .button-danger:hover {
+      background: #b91c1c;
+    }
+
     .table-shell {
       padding: 18px;
     }
@@ -1065,7 +1075,25 @@
         }
       }
 
+      async function releaseBorrowedThing(thingId) {
+        const cleanId = String(thingId || '').trim();
+        if (!cleanId) return;
+
+        const confirmed = await confirmDialog("Retirer cet objet a l'utilisateur et le remettre disponible ?");
+        if (!confirmed) return;
+
+        const response = await fetch(`${apiBase}/admin/things/${encodeURIComponent(cleanId)}/release-borrow`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const payload = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error(String(payload.detail || 'Retrait impossible.'));
+        }
+      }
+
       function openOverlay(user) {
+        selectedUser = user;
         detailTitle.textContent = `Détails de ${user.display_name}`;
         detailSubtitle.innerHTML = `<span class="mono">${escapeHtml(user.email)}</span><br><span class="mono">ID: ${escapeHtml(user.id)}</span>`;
 
@@ -1092,10 +1120,16 @@
         }).join('') : '<div class="detail-empty">Aucun signalement trouvé dans l’historique de cet utilisateur.</div>';
 
         const borrowedHtml = borrowedObjects.length ? borrowedObjects.map(function (item) {
+          const thingId = formatText(item.thing_id || item.id, '');
           return `
             <div class="detail-item">
               <p class="detail-item-title">${escapeHtml(item.name || item.thing_id || 'Objet en cours')}</p>
               <p class="detail-item-copy">ID: ${escapeHtml(item.thing_id || '-')} • Type: ${escapeHtml(item.type || 'Non spécifié')} • Localisation: ${escapeHtml(item.location || 'Non spécifiée')} • Pris le: ${escapeHtml(formatDate(item.taken_at || '-'))}</p>
+              ${thingId ? `
+                <div style="margin-top:10px;">
+                  <button class="button button-danger" type="button" data-release-borrow="${escapeHtml(thingId)}">Retirer l'objet</button>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('') : '<div class="detail-empty">Aucun objet en cours d’utilisation pour cet utilisateur.</div>';
@@ -1214,6 +1248,23 @@
             .then(function () { return loadUsers(); })
             .catch(function (error) { window.alert(String(error && error.message ? error.message : 'Erreur suppression utilisateur.')); });
         }
+      });
+
+      detailBody.addEventListener('click', function (event) {
+        const releaseButton = event.target.closest('[data-release-borrow]');
+        if (!releaseButton) return;
+        const thingId = releaseButton.getAttribute('data-release-borrow');
+        const userId = selectedUser ? selectedUser.id : '';
+        releaseBorrowedThing(thingId)
+          .then(function () { return loadUsers(); })
+          .then(function () {
+            if (!userId) return;
+            const refreshed = users.find(function (item) { return item.id === userId; });
+            if (refreshed) {
+              openOverlay(refreshed);
+            }
+          })
+          .catch(function (error) { window.alert(String(error && error.message ? error.message : 'Erreur retrait objet.')); });
       });
 
       searchInput.addEventListener('input', filterUsers);

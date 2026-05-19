@@ -218,6 +218,18 @@
 
     .refresh-btn:hover { background: var(--accent-2); }
 
+    .bulk-return-btn {
+      border: none;
+      background: #0f172a;
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .bulk-return-btn:hover { background: #1e293b; }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -810,7 +822,10 @@
     <div class="body">
       <div class="toolbar">
         <div class="counter" id="counter" data-translate="false">0 objet en cours</div>
-        <button class="refresh-btn" id="refreshBtn"><i class="fas fa-rotate"></i> <span data-key="btn_refresh">Actualiser</span></button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="bulk-return-btn" id="returnAllBtn"><i class="fas fa-arrow-rotate-left"></i> <span>Tout rendre</span></button>
+          <button class="refresh-btn" id="refreshBtn"><i class="fas fa-rotate"></i> <span data-key="btn_refresh">Actualiser</span></button>
+        </div>
       </div>
 
       <table id="objectsTable" aria-label="Mes objets empruntes">
@@ -882,6 +897,7 @@
     const emptyState = document.getElementById("emptyState");
     const counter = document.getElementById("counter");
     const refreshBtn = document.getElementById("refreshBtn");
+    const returnAllBtn = document.getElementById("returnAllBtn");
     const miniConfirm = document.getElementById("miniConfirm");
     const miniConfirmBackdrop = document.getElementById("miniConfirmBackdrop");
     const miniConfirmText = document.getElementById("miniConfirmText");
@@ -1126,7 +1142,18 @@
       if (/(lamp|lampe|light|eclair|luminaire)/.test(raw)) return "lamp";
       if (/(alarm|alarme|siren|sirene|alert|alerte)/.test(raw)) return "alarm";
       if (/(smart\s*tv|television|televiseur|\btv\b)/.test(raw)) return "tv";
-      return "";
+      if (/(camera|webcam|video)/.test(raw)) return "camera";
+      if (/(capteur|sensor|humidity|temperature)/.test(raw)) return "sensor";
+      if (/(climatiseur|hvac|clim|chauffage)/.test(raw)) return "hvac";
+      if (/(acces|lock|porte|badge|access)/.test(raw)) return "access_control";
+      if (/(haut-parleur|speaker|audio|son)/.test(raw)) return "speaker";
+      if (/(imprimante|printer)/.test(raw)) return "printer";
+      if (/(interrupteur|switch|bouton|button)/.test(raw)) return "switch";
+      if (/(cafe|coffee|machine)/.test(raw)) return "coffee";
+      if (/(microphone|micro|\bmic\b)/.test(raw)) return "microphone";
+      if (/(scanner|numériseur)/.test(raw)) return "scanner";
+      if (/(ecran|tableau|moniteur|affichage)/.test(raw)) return "display";
+      return "generic";
     }
 
     function isLampObject(item) {
@@ -1159,31 +1186,64 @@
     }
 
     function getGenericControlActions(item) {
-      if (getRemoteObjectKind(item)) return [];
       const control = item && typeof item.control === "object" ? item.control : {};
       const actions = getControlActions(item);
-      if (!control.endpoint || !actions || typeof actions !== "object") return [];
+      if (actions && typeof actions === "object" && Object.keys(actions).length > 0) {
+        return Object.keys(actions)
+          .map(function (name) {
+            const cfg = actions[name] && typeof actions[name] === "object" ? actions[name] : {};
+            return {
+              name: String(name || "").trim().toLowerCase(),
+              label: String(cfg.label || name || "").trim()
+            };
+          })
+          .filter(function (action) { return Boolean(action.name); });
+      }
 
-      return Object.keys(actions)
-        .map(function (name) {
-          const cfg = actions[name] && typeof actions[name] === "object" ? actions[name] : {};
-          return {
-            name: String(name || "").trim().toLowerCase(),
-            label: String(cfg.label || name || "").trim()
-          };
-        })
-        .filter(function (action) { return Boolean(action.name); });
+      if (!control.endpoint) return [];
+
+      const kind = getRemoteObjectKind(item);
+      if (kind === "camera") return [
+        { name: "snapshot", label: "Prendre une photo" },
+        { name: "startrecording", label: "Enregistrer" }
+      ];
+      if (kind === "hvac") return [
+        { name: "on", label: "Allumer Clim" },
+        { name: "off", label: "Eteindre Clim" },
+        { name: "settemp", label: "Regler Temperature" }
+      ];
+      if (kind === "coffee") return [
+        { name: "brewcoffee", label: "Couler un Cafe" },
+        { name: "clean", label: "Nettoyer machine" }
+      ];
+      if (kind === "access_control") return [
+        { name: "unlock", label: "Deverrouiller Porte" },
+        { name: "grant", label: "Autoriser l'acces" }
+      ];
+      if (kind === "printer") return [
+        { name: "printtestpage", label: "Imprimer Page Test" }
+      ];
+      if (kind === "display") return [
+        { name: "refresh", label: "Actualiser l'affichage" },
+        { name: "poweroff", label: "Mettre en veille" }
+      ];
+
+      return [];
     }
 
     function getGenericActionIcon(actionName) {
       const normalized = String(actionName || "").toLowerCase();
-      if (normalized === "on" || normalized.includes("start") || normalized.includes("activate")) return "fa-power-off";
-      if (normalized === "off" || normalized.includes("stop") || normalized.includes("deactivate")) return "fa-moon";
+      if (normalized === "on" || normalized.includes("start") || normalized.includes("activate") || normalized.includes("poweron")) return "fa-power-off";
+      if (normalized === "off" || normalized.includes("stop") || normalized.includes("deactivate") || normalized.includes("poweroff")) return "fa-moon";
       if (normalized.includes("print")) return "fa-print";
       if (normalized.includes("scan")) return "fa-file-lines";
+      if (normalized.includes("snapshot") || normalized.includes("photo")) return "fa-camera";
       if (normalized.includes("calibr")) return "fa-sliders";
-      if (normalized.includes("lock")) return "fa-lock";
-      if (normalized.includes("unlock")) return "fa-lock-open";
+      if (normalized.includes("set")) return "fa-sliders";
+      if (normalized.includes("lock") || normalized.includes("fermer")) return "fa-lock";
+      if (normalized.includes("unlock") || normalized.includes("ouvrir")) return "fa-lock-open";
+      if (normalized.includes("brew") || normalized.includes("cafe")) return "fa-coffee";
+      if (normalized.includes("refresh") || normalized.includes("actualis")) return "fa-arrows-rotate";
       return "fa-bolt";
     }
 
@@ -1657,6 +1717,32 @@
       }
     }
 
+    async function retournerTousObjets() {
+      const ids = Array.from(mesObjetsCache.keys());
+      if (!ids.length) {
+        showToast(tr("my_objects_none", "Aucun objet a rendre"), "error");
+        return;
+      }
+
+      const confirmMsg = tr("confirm_return_all", "Voulez-vous vraiment rendre tous vos objets ?");
+      const confirmed = await askConfirm(confirmMsg);
+      if (!confirmed) return;
+
+      for (const id of ids) {
+        try {
+          await fetch(`${API_BASE}/things/${encodeURIComponent(id)}/retourner`, {
+            method: "POST",
+            headers: authHeaders()
+          });
+        } catch (error) {
+          console.error("Erreur retour en masse:", error);
+        }
+      }
+
+      showToast(tr("object_returned_all", "Tous les objets ont ete rendus"), "success");
+      await loadMesObjets();
+    }
+
     function openReportProblemModalMesObjets(thingId, thingName) {
       const decodedId = String(thingId || "").trim();
       const decodedName = String(thingName || "Objet").trim();
@@ -1851,6 +1937,7 @@
     });
 
     refreshBtn.addEventListener("click", loadMesObjets);
+    returnAllBtn.addEventListener("click", retournerTousObjets);
     window.addEventListener("app:languagechange", function () {
       if (!mesObjetsReady) return;
       loadMesObjets();

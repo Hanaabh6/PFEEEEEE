@@ -97,7 +97,7 @@
       fetch(`${apiBase}/admin/stats/by-type`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
       fetch(`${apiBase}/admin/stats/app-usage-daily?days=7`,{headers:authHeaders()}).then(r=>r.ok?r.json():({labels:[],users:[],admins:[]})).catch(()=>({labels:[],users:[],admins:[]})),
       fetch(`${apiBase}/admin/stats/top-viewed?limit=6`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${apiBase}/admin/stats/top-reported?limit=6`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[])
+      fetch(`${apiBase}/admin/stats/top-reported?limit=10`,{headers:authHeaders()}).then(r=>r.ok?r.json():[]).catch(()=>[])
     ]);
     const copt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{display:false},beginAtZero:true}}};
     Object.values(chartInstances).forEach(chart => {
@@ -146,8 +146,8 @@
 
     const topViewedLabels = (tv||[]).map(x=>x.name||'Sans nom').slice(0,6);
     const topViewedValues = (tv||[]).map(x=>x.view_count||0).slice(0,6);
-    const topReportedLabels = (tr||[]).map(x=>x.thing_name||'Inconnu').slice(0,6);
-    const topReportedValues = (tr||[]).map(x=>x.count||0).slice(0,6);
+    const topReportedLabels = (tr||[]).map(x=>x.thing_name||'Inconnu').slice(0,10);
+    const topReportedValues = (tr||[]).map(x=>x.count||0).slice(0,10);
     const usageLabels = (usage && Array.isArray(usage.labels) ? usage.labels : []).map((d) => {
       try {
         const dt = new Date(`${d}T00:00:00`);
@@ -165,8 +165,8 @@
 
     chartInstances.type=new Chart(document.getElementById('chartByType'),{type:'doughnut',data:{labels:(bt||[]).map(x=>x.type||'Inconnu'),datasets:[{data:(bt||[]).map(x=>x.count||0),backgroundColor:cols,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}},cutout:'65%'}});
     chartInstances.usageDaily=new Chart(document.getElementById('chartUsageDaily'),{type:'line',data:{labels:usageLabels,datasets:[{label:'Users',data:usageUsers,borderColor:'#2563eb',backgroundColor:'rgba(37, 99, 235, 0.28)',fill:true,tension:0.42,pointRadius:3,pointHoverRadius:5,borderWidth:2.2},{label:'Admins',data:usageAdmins,borderColor:'#f97316',backgroundColor:'rgba(249, 115, 22, 0.28)',fill:true,tension:0.42,pointRadius:3,pointHoverRadius:5,borderWidth:2.2}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,position:'top',labels:{usePointStyle:true,boxWidth:10,font:{size:11,weight:'700'}}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,suggestedMax:usageMax,ticks:{precision:0,stepSize:Math.max(1,Math.ceil(usageMax/5))},grid:{color:'rgba(148, 163, 184, 0.2)'}}}}});
-    chartInstances.viewed=new Chart(document.getElementById('chartTopViewed'),{type:'bar',data:{labels:topViewedLabels,datasets:[{label:'Vues',data:topViewedValues,backgroundColor:'#10b981',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topViewedValues)});
-    chartInstances.reported=new Chart(document.getElementById('chartTopReported'),{type:'bar',data:{labels:topReportedLabels,datasets:[{label:'Signalements',data:topReportedValues,backgroundColor:'#ef4444',borderRadius:6,maxBarThickness:22}]},options:barChartOptions(topReportedValues)});
+    chartInstances.viewed=new Chart(document.getElementById('chartTopViewed'),{type:'bar',data:{labels:topViewedLabels,datasets:[{label:'Vues',data:topViewedValues,backgroundColor:'#10b981',borderRadius:6,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.7}]},options:barChartOptions(topViewedValues)});
+    chartInstances.reported=new Chart(document.getElementById('chartTopReported'),{type:'bar',data:{labels:topReportedLabels,datasets:[{label:'Signalements',data:topReportedValues,backgroundColor:'#ef4444',borderRadius:6,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.7}]},options:barChartOptions(topReportedValues)});
   }
 
   async function loadActivity(){

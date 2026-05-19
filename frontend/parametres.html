@@ -254,6 +254,33 @@
     .role-item h4 { margin: 0 0 6px; font-size: 14px; color: #0f172a; }
     .role-item p { margin: 0; font-size: 13px; color: #334155; }
 
+    .activity-collapsible {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 8px 12px;
+    }
+
+    .activity-collapsible summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      font-weight: 800;
+      color: #0f172a;
+      padding: 6px 2px;
+    }
+
+    .activity-collapsible summary::-webkit-details-marker { display: none; }
+
+    .activity-collapsible .summary-meta {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
     .page-stat-grid .page-stat-card:last-child { display: none; }
     .main-wrap > section.glass.p-5:last-of-type { display: none; }
 
@@ -343,27 +370,33 @@
     </section>
 
     <section class="glass p-5 mb-5">
-      <div class="flex items-center justify-between gap-3 mb-3">
-        <h2 class="text-xl font-black text-slate-800 m-0">Activite utilisateurs</h2>
-        <button id="refreshActivityBtn" class="btn btn-outline">Rafraichir activite</button>
-      </div>
+      <details class="activity-collapsible">
+        <summary>
+          <span>Activite utilisateurs</span>
+          <span class="summary-meta">Cliquez pour ouvrir</span>
+        </summary>
+        <div class="flex items-center justify-between gap-3 mb-3 mt-3">
+          <p class="text-slate-600 m-0">Consultez le journal quand necessaire.</p>
+          <button id="refreshActivityBtn" class="btn btn-outline">Rafraichir activite</button>
+        </div>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Utilisateur</th>
-              <th>Action</th>
-              <th>Objet</th>
-              <th>Detail</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody id="activityBody"></tbody>
-        </table>
-      </div>
-      <p id="activityEmpty" class="text-slate-500 mt-2" hidden>Aucune activite utilisateur recente.</p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Utilisateur</th>
+                <th>Action</th>
+                <th>Objet</th>
+                <th>Detail</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="activityBody"></tbody>
+          </table>
+        </div>
+        <p id="activityEmpty" class="text-slate-500 mt-2" hidden>Aucune activite utilisateur recente.</p>
+      </details>
     </section>
 
     <section class="glass p-5" hidden>
