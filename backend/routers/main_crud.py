@@ -51,9 +51,17 @@ def _index_collection():
 def _normalize_text(text: str) -> str:
     if not text:
         return ""
-    text = text.lower().strip()
+    import re
+    text = str(text).lower().strip()
+    # Supprimer les accents
     text = unicodedata.normalize("NFD", text)
     text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    # Remplacer espaces et tirets par underscore
+    text = text.replace("-", "_").replace(" ", "_")
+    # Garder uniquement lettres, chiffres, underscores
+    text = re.sub(r"[^a-z0-9_]", "", text)
+    # Fusionner underscores multiples
+    text = re.sub(r"_+", "_", text).strip("_")
     return text
 
 
